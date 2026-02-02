@@ -17,7 +17,7 @@ The platform follows a clean, decoupled architecture separating the presentation
 ```mermaid
 graph TD
     Client[React Frontend] -->|REST API| API[FastAPI Backend]
-    API -->|ORM| DB[(SQLite Database)]
+    API -->|ORM| DB[(PostgreSQL Database)]
     API -->|Process| ML[ML Logic / Scikit-Learn]
     ML -->|Train/Predict| DB
     Client -->|User Auth| API
@@ -56,7 +56,7 @@ graph TD
 | **Visualization** | Recharts | Interactive charts and graphs |
 | **Backend** | FastAPI | High-performance API framework |
 | **Language** | Python 3.9+ | Backend logic and ML modeling |
-| **Database** | SQLite + SQLModel | Data persistence and ORM |
+| **Database** | PostgreSQL + SQLModel | Data persistence and ORM |
 | **ML / AI** | Scikit-Learn, Pandas | Data processing, clustering, and regression |
 | **Tooling** | Vite, ESLint | Build tool and code quality |
 
