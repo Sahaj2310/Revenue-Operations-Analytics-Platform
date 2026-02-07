@@ -9,8 +9,13 @@ class RevenueData(SQLModel, table=True):
     customer_name: str
     category: str
 
-class User(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+class UserBase(SQLModel):
     username: str = Field(index=True, unique=True)
     email: str = Field(unique=True)
+
+class UserCreate(UserBase):
+    password: str
+
+class User(UserBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
     hashed_password: str

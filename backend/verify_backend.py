@@ -1,4 +1,5 @@
 import requests
+import time
 
 BASE_URL = "http://localhost:8000"
 
@@ -6,14 +7,11 @@ def test_auth():
     print("Testing Authentication...")
     
     # 1. Register
-    username = "testuser_verify"
+    username = f"testuser_{int(time.time())}"
     password = "password123"
-    email = "test@example.com"
+    email = f"test_{int(time.time())}@example.com"
     
-    reg_data = {"username": username, "password": password, "email": email, "hashed_password": password} # hashed_password field reused for password in register model for simplicity or mismatch? 
-    # Wait, the model User has hashed_password. The endpoint expects User model. 
-    # In main.py: def register(user: User ...). 
-    # So I should send hashed_password as the password. The backend hashes it.
+    reg_data = {"username": username, "password": password, "email": email}
     
     response = requests.post(f"{BASE_URL}/register", json=reg_data)
     if response.status_code == 201:

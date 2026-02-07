@@ -20,7 +20,7 @@ const Register = () => {
             await api.post('/register', {
                 username,
                 email,
-                hashed_password: password
+                password
             });
 
             setSuccess('Registration successful! Redirecting to login...');

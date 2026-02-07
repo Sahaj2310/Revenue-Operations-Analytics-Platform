@@ -7,7 +7,7 @@ import pandas as pd
 import io
 from datetime import timedelta
 from database import create_db_and_tables, get_session, engine
-from models import RevenueData, User
+from models import RevenueData, User, UserCreate
 from ml_logic import train_and_predict, predict_churn_risk
 from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES, 
@@ -40,15 +40,16 @@ def on_startup():
 # --- Authentication Endpoints ---
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
-def register(user: User, session: Session = Depends(get_session)):
+def register(user_in: UserCreate, session: Session = Depends(get_session)):
     # Check if user exists
-    statement = select(User).where(User.username == user.username)
+    statement = select(User).where((User.username == user_in.username) | (User.email == user_in.email))
     existing_user = session.exec(statement).first()
     if existing_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=400, detail="Username or Email already registered")
     
     # Create new user
-    user.hashed_password = get_password_hash(user.hashed_password)
+    hashed_password = get_password_hash(user_in.password)
+    user = User(username=user_in.username, email=user_in.email, hashed_password=hashed_password)
     session.add(user)
     session.commit()
     session.refresh(user)
