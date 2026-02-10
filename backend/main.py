@@ -7,8 +7,10 @@ import pandas as pd
 import io
 from datetime import timedelta
 from database import create_db_and_tables, get_session, engine
-from models import RevenueData, User, UserCreate
+from models import RevenueData, User, UserCreate, AlertRule, AlertEvent
 from ml_logic import train_and_predict, predict_churn_risk
+from alerts import evaluate_rules
+from cohorts import calculate_cohorts
 from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES, 
     create_access_token, 
@@ -90,7 +92,18 @@ def upload_csv(
         df = df.fillna(0) # Fill missing values with 0
         
         # 1. Validate Columns (Case Insensitive)
-        df.columns = [c.lower() for c in df.columns]
+        df.columns = [c.lower().strip() for c in df.columns]
+        
+        # Rename common variations
+        rename_map = {
+            'product_category': 'category',
+            'product': 'category',
+            'cost': 'amount',
+            'value': 'amount',
+            'customer': 'customer_name'
+        }
+        df = df.rename(columns=rename_map)
+        
         required_columns = ['date', 'amount', 'customer_name', 'category']
         missing_cols = [col for col in required_columns if col not in df.columns]
         if missing_cols:
@@ -122,6 +135,13 @@ def upload_csv(
             session.add(revenue_entry)
         
         session.commit()
+        
+        # Trigger Alert Evaluation
+        try:
+            evaluate_rules(session)
+        except Exception as e:
+            print(f"Alert Evaluation Failed: {e}")
+            
         return {"message": "Data uploaded and processed successfully", "rows_processed": len(df)}
         
     except Exception as e:
@@ -329,7 +349,7 @@ def get_customers(session: Session = Depends(get_session)):
     
     for i, row in customer_stats.iterrows():
         # Get Risk Data (Default to Unknown if missing)
-        risk_data = churn_risks.get(row['name'], {"risk": "Unknown", "reason": "Insufficient Data"})
+        risk_data = churn_risks.get(row['name'], {"risk": "Unknown", "factors": ["Insufficient Data"]})
         
         # Calculate Recency
         recency = (now - row['last_purchase']).days
@@ -343,7 +363,7 @@ def get_customers(session: Session = Depends(get_session)):
             "recency": int(recency),
             "status": "Active" if recency <= 90 else "Inactive",
             "churn_risk": risk_data["risk"],
-            "churn_risk_reason": risk_data["reason"]
+            "churn_factors": risk_data["factors"]
         })
     
     return customers_list
@@ -366,3 +386,43 @@ def get_customer_details(customer_name: str, session: Session = Depends(get_sess
         for row in results
     ]
     return transactions
+
+# --- Alerts Endpoints ---
+
+@app.post("/alerts/rules", status_code=status.HTTP_201_CREATED)
+def create_alert_rule(rule: AlertRule, session: Session = Depends(get_session)):
+    session.add(rule)
+    session.commit()
+    session.refresh(rule)
+    return rule
+
+@app.get("/alerts/rules")
+def get_alert_rules(session: Session = Depends(get_session)):
+    return session.exec(select(AlertRule)).all()
+    
+@app.delete("/alerts/rules/{rule_id}")
+def delete_alert_rule(rule_id: int, session: Session = Depends(get_session)):
+    rule = session.get(AlertRule, rule_id)
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    session.delete(rule)
+    session.commit()
+    return {"message": "Rule deleted"}
+
+@app.get("/alerts/events")
+def get_alert_events(session: Session = Depends(get_session)):
+    # Return latest events first
+    return session.exec(select(AlertEvent).order_by(AlertEvent.timestamp.desc())).all()
+
+# --- Cohort Analysis Endpoints ---
+
+@app.get("/analytics/cohorts")
+def get_cohort_analysis(session: Session = Depends(get_session)):
+    statement = select(RevenueData)
+    results = session.exec(statement).all()
+    
+    if not results:
+        return {"retention": [], "heads": []}
+        
+    df = pd.DataFrame([row.dict() for row in results])
+    return calculate_cohorts(df)

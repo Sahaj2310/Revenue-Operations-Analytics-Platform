@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, Stack, Typography, CircularProgress, Box, FormControl, Select, MenuItem, SelectChangeEvent } from '@mui/material';
+import { Grid, Stack, Typography, CircularProgress, Box, FormControl, Select, MenuItem, SelectChangeEvent, Snackbar, Alert } from '@mui/material';
 import MetricStrip from '../components/MetricStrip';
 import RevenueChart from '../components/RevenueChart';
 import UploadCard from '../components/UploadCard';
@@ -39,13 +39,26 @@ const Dashboard = () => {
         setTimeRange(event.target.value as string);
     };
 
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+        open: false,
+        message: '',
+        severity: 'success',
+    });
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
+
     const handleUpload = async (file: File) => {
         setLoading(true); // Show local loading state
         try {
             await uploadFile(file);
             await loadData(timeRange);
-        } catch (error) {
+            setSnackbar({ open: true, message: 'File uploaded successfully!', severity: 'success' });
+        } catch (error: any) {
             console.error(error);
+            const errMsg = error.response?.data?.detail || 'Failed to upload file.';
+            setSnackbar({ open: true, message: errMsg, severity: 'error' });
         } finally {
             setLoading(false);
         }
@@ -99,6 +112,12 @@ const Dashboard = () => {
                     <UploadCard onUpload={handleUpload} />
                 </Grid>
             </Grid>
+
+            <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Stack>
     );
 };

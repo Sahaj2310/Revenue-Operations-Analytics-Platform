@@ -13,6 +13,8 @@ import Customers from './pages/Customers';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Alerts from './pages/Alerts';
+import CohortAnalysis from './pages/CohortAnalysis';
 
 function AppContent() {
     const { mode } = useColorMode();
@@ -36,7 +38,9 @@ function AppContent() {
                                     <Routes>
                                         <Route path="/" element={<Dashboard />} />
                                         <Route path="/analytics" element={<Analytics />} />
+                                        <Route path="/cohorts" element={<CohortAnalysis />} />
                                         <Route path="/customers" element={<Customers />} />
+                                        <Route path="/alerts" element={<Alerts />} />
                                         <Route path="/settings" element={<Settings />} />
                                     </Routes>
                                 </Box>

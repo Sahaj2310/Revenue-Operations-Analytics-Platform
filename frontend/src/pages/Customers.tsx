@@ -12,7 +12,7 @@ interface Customer {
     transactions: number;
     status: 'Active' | 'Inactive';
     churn_risk: 'High Risk' | 'Medium Risk' | 'Low Risk' | 'Unknown';
-    churn_risk_reason?: string;
+    churn_factors?: string[];
 }
 
 const Customers = () => {
@@ -93,7 +93,17 @@ const Customers = () => {
                                     />
                                 </TableCell>
                                 <TableCell>
-                                    <Tooltip title={customer.churn_risk_reason || "No data available"} arrow placement="top">
+                                    <Tooltip
+                                        title={
+                                            customer.churn_factors && customer.churn_factors.length > 0 ? (
+                                                <ul style={{ margin: 0, paddingLeft: 15 }}>
+                                                    {customer.churn_factors.map((f, i) => <li key={i}>{f}</li>)}
+                                                </ul>
+                                            ) : "No data available"
+                                        }
+                                        arrow
+                                        placement="top"
+                                    >
                                         <Chip
                                             label={customer.churn_risk}
                                             size="small"

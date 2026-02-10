@@ -63,7 +63,16 @@ def train_and_predict(data: pd.DataFrame, months_to_predict: int = 3):
 def predict_churn_risk(df: pd.DataFrame):
     """
     Classify customers into High, Medium, and Low Risk groups using RFM Analysis + K-Means.
-    Returns a dictionary: {customer_name: {"risk": "High Risk", "reason": "Inactive for 95 days"}}
+    Returns a dictionary: 
+    {
+        customer_name: {
+            "risk": "High Risk", 
+            "factors": [
+                "Inactive for 95 days", 
+                "Spend is 60% below average"
+            ]
+        }
+    }
     """
     if df.empty:
         return {}
@@ -81,25 +90,48 @@ def predict_churn_risk(df: pd.DataFrame):
     scaler = StandardScaler()
     rfm_scaled = scaler.fit_transform(rfm)
     
+    # Global Averages for Explanation
+    avg_recency = rfm['recency'].mean()
+    avg_frequency = rfm['frequency'].mean()
+    avg_monetary = rfm['monetary'].mean()
+
     # 3. Hybrid approach: Rules for small data, AI for large data
     n_samples = len(rfm)
     results = {}
     
-    # helper for formatting reason
-    def get_reason(row):
-        return f"Inactive for {int(row['recency'])} days"
+    # helper for formatting reasons
+    def get_factors(row):
+        factors = []
+        # Recency Factors
+        if row['recency'] > 90:
+            factors.append(f"Inactive for {int(row['recency'])} days")
+        elif row['recency'] > avg_recency * 1.5:
+             factors.append(f"Inactivity higher than average ({int(avg_recency)} days)")
+             
+        # Frequency Factors
+        if row['frequency'] < avg_frequency * 0.5:
+            factors.append("Low transaction frequency")
+            
+        # Monetary Factors
+        if row['monetary'] < avg_monetary * 0.5:
+             factors.append("Total spend is significantly low")
+             
+        if not factors:
+            factors.append("General engagement drop")
+            
+        return factors[:3] # Return top 3 factors
 
     # helper for rule-based
     def apply_rules(rfm_df):
         res = {}
         for customer, row in rfm_df.iterrows():
-            reason = get_reason(row)
+            factors = get_factors(row)
             if row['recency'] > 90:
-                res[customer] = {"risk": "High Risk", "reason": reason}
+                res[customer] = {"risk": "High Risk", "factors": factors}
             elif row['recency'] > 30:
-                res[customer] = {"risk": "Medium Risk", "reason": reason}
+                res[customer] = {"risk": "Medium Risk", "factors": factors}
             else:
-                res[customer] = {"risk": "Low Risk", "reason": "Active recently"}
+                res[customer] = {"risk": "Low Risk", "factors": ["Active recently"]}
         return res
 
     if n_samples < 5:
@@ -127,10 +159,12 @@ def predict_churn_risk(df: pd.DataFrame):
         
         for customer, row in rfm.iterrows():
             risk_level = risk_map.get(row['cluster'], "Unknown")
-            reason = get_reason(row)
+            factors = get_factors(row)
+            
             if risk_level == "Low Risk":
-                reason = "Active recently"
-            results[customer] = {"risk": risk_level, "reason": reason}
+                factors = ["Active recently"]
+                
+            results[customer] = {"risk": risk_level, "factors": factors}
             
         return results
         

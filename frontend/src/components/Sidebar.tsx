@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography, useTheme } from '@mui/material';
-import { Dashboard, Insights, People, Settings, AutoAwesome, Logout } from '@mui/icons-material';
+import { Dashboard, Insights, People, Settings, AutoAwesome, Logout, NotificationsActive, GroupWork } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,7 +19,9 @@ const Sidebar = () => {
     const menuItems = [
         { text: 'Dashboard', icon: <Dashboard />, path: '/' },
         { text: 'Analytics', icon: <Insights />, path: '/analytics' },
+        { text: 'Cohorts', icon: <GroupWork />, path: '/cohorts' },
         { text: 'Customers', icon: <People />, path: '/customers' },
+        { text: 'Alerts', icon: <NotificationsActive />, path: '/alerts' },
         { text: 'Settings', icon: <Settings />, path: '/settings' },
     ];
 

@@ -72,4 +72,31 @@ export const fetchCustomerDetails = async (name: string): Promise<any[]> => {
     return response.data;
 };
 
+// Alerts
+export const fetchAlertRules = async (): Promise<any[]> => {
+    const response = await api.get('/alerts/rules');
+    return response.data;
+};
+
+export const createAlertRule = async (rule: any): Promise<any> => {
+    const response = await api.post('/alerts/rules', rule);
+    return response.data;
+};
+
+export const deleteAlertRule = async (id: number): Promise<any> => {
+    const response = await api.delete(`/alerts/rules/${id}`);
+    return response.data;
+};
+
+export const fetchAlertEvents = async (): Promise<any[]> => {
+    const response = await api.get('/alerts/events');
+    return response.data;
+};
+
+// Cohorts
+export const fetchCohortAnalysis = async (): Promise<any> => {
+    const response = await api.get('/analytics/cohorts');
+    return response.data;
+};
+
 export default api;
