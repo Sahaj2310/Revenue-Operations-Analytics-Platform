@@ -2,9 +2,23 @@ import { useEffect, useState } from 'react';
 import { Grid, Stack, Typography, CircularProgress, Box, FormControl, Select, MenuItem, SelectChangeEvent, useTheme } from '@mui/material';
 import CategoryChart from '../components/CategoryChart';
 import CustomerTable from '../components/CustomerTable';
-import { fetchAdvancedAnalytics, fetchCustomers } from '../api';
+import { fetchAdvancedAnalytics, fetchCustomers, downloadExecutiveReport } from '../api';
 import { AdvancedAnalyticsResponse } from '../types';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Label, Cell } from 'recharts';
+import { motion, Variants } from 'framer-motion';
+
+const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: { 
+        opacity: 1,
+        transition: { staggerChildren: 0.1 }
+    }
+};
+
+const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+};
 
 interface Customer {
     id: number;
@@ -19,6 +33,7 @@ const Analytics = () => {
     const [advanced, setAdvanced] = useState<AdvancedAnalyticsResponse | null>(null);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(true);
+    const [downloadingPdf, setDownloadingPdf] = useState(false);
     const [timeRange, setTimeRange] = useState('90d');
     const theme = useTheme();
 
@@ -61,6 +76,26 @@ const Analytics = () => {
         document.body.removeChild(link);
     };
 
+    const handleDownloadPdf = async () => {
+        setDownloadingPdf(true);
+        try {
+            const blob = await downloadExecutiveReport(timeRange);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Executive_Revenue_Report_${timeRange}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Failed to download PDF report:", error);
+            alert("Failed to generate the PDF report. Please try again.");
+        } finally {
+            setDownloadingPdf(false);
+        }
+    };
+
     // Prepare Data for Scatter Plot
     const scatterData = customers.map(c => ({
         x: c.recency || 0,
@@ -82,58 +117,81 @@ const Analytics = () => {
     if (loading && !advanced) return <CircularProgress />;
 
     return (
-        <Stack spacing={3}>
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                {/* ... Header ... */}
-                <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                        Deep Dive Analytics
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary">
-                        Analyze revenue sources, churn risk, and transaction history.
-                    </Typography>
-                </Box>
-
-                <Stack direction="row" spacing={2}>
-                    <Box
-                        component="button"
-                        onClick={handleExport}
-                        sx={{
-                            border: 0,
-                            bgcolor: 'primary.main',
-                            color: 'white',
-                            px: 2,
-                            py: 1,
-                            borderRadius: 1,
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                            '&:hover': {
-                                bgcolor: 'primary.dark',
-                            }
-                        }}
-                    >
-                        Export CSV
+        <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="visible" spacing={3}>
+            <motion.div variants={itemVariants}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                    {/* ... Header ... */}
+                    <Box>
+                        <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                            Deep Dive Analytics
+                        </Typography>
+                        <Typography variant="body1" color="text.secondary">
+                            Analyze revenue sources, churn risk, and transaction history.
+                        </Typography>
                     </Box>
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                        <Select
-                            value={timeRange}
-                            onChange={handleRangeChange}
-                            sx={{ bgcolor: 'background.paper' }}
+
+                    <Stack direction="row" spacing={2}>
+                        <Box
+                            component="button"
+                            onClick={handleDownloadPdf}
+                            disabled={downloadingPdf}
+                            sx={{
+                                border: 0,
+                                bgcolor: 'secondary.main',
+                                color: 'white',
+                                px: 2,
+                                py: 1,
+                                borderRadius: 1,
+                                cursor: downloadingPdf ? 'default' : 'pointer',
+                                fontWeight: 600,
+                                opacity: downloadingPdf ? 0.7 : 1,
+                                '&:hover': {
+                                    bgcolor: downloadingPdf ? 'secondary.main' : 'secondary.dark',
+                                }
+                            }}
                         >
-                            <MenuItem value="7d">Last 7 Days</MenuItem>
-                            <MenuItem value="30d">Last 30 Days</MenuItem>
-                            <MenuItem value="90d">Last Quarter</MenuItem>
-                            <MenuItem value="12m">Last Year</MenuItem>
-                        </Select>
-                    </FormControl>
+                            {downloadingPdf ? 'Generating PDF...' : 'Download Report (.pdf)'}
+                        </Box>
+                        <Box
+                            component="button"
+                            onClick={handleExport}
+                            sx={{
+                                border: 0,
+                                bgcolor: 'primary.main',
+                                color: 'white',
+                                px: 2,
+                                py: 1,
+                                borderRadius: 1,
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                                '&:hover': {
+                                    bgcolor: 'primary.dark',
+                                }
+                            }}
+                        >
+                            Export CSV
+                        </Box>
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                            <Select
+                                value={timeRange}
+                                onChange={handleRangeChange}
+                                sx={{ bgcolor: 'background.paper' }}
+                            >
+                                <MenuItem value="7d">Last 7 Days</MenuItem>
+                                <MenuItem value="30d">Last 30 Days</MenuItem>
+                                <MenuItem value="90d">Last Quarter</MenuItem>
+                                <MenuItem value="12m">Last Year</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Stack>
                 </Stack>
-            </Stack>
+            </motion.div>
 
             <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={6} component={motion.div} variants={itemVariants}>
                     <CategoryChart data={advanced?.category_split || []} />
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={6} component={motion.div} variants={itemVariants}>
                     <Box sx={{
                         height: 400,
                         bgcolor: 'background.paper',
@@ -181,7 +239,9 @@ const Analytics = () => {
             </Grid>
 
             {/* Detailed Transaction Log */}
-            <CustomerTable transactions={advanced?.recent_transactions || []} />
+            <motion.div variants={itemVariants}>
+                <CustomerTable transactions={advanced?.recent_transactions || []} />
+            </motion.div>
         </Stack>
     );
 };

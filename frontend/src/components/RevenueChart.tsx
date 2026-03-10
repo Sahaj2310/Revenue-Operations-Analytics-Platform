@@ -38,11 +38,13 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ history, prediction }) => {
 
     return (
         <Card sx={{ height: '100%', minHeight: 400 }}>
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6">Revenue Forecast</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        AI-powered prediction for the next quarter
+            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 3 }}>
+                <Box sx={{ mb: 4 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', mb: 0.5 }}>
+                        Revenue Forecast
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em', color: 'text.primary' }}>
+                        AI-Powered Projection
                     </Typography>
                 </Box>
 
@@ -51,21 +53,21 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ history, prediction }) => {
                         <ComposedChart data={combinedData}>
                             <defs>
                                 <linearGradient id="colorHistory" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#00E5FF" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#00E5FF" stopOpacity={0} />
+                                    <stop offset="5%" stopColor={theme.palette.mode === 'dark' ? '#FFFFFF' : '#09090B'} stopOpacity={0.1} />
+                                    <stop offset="95%" stopColor={theme.palette.mode === 'dark' ? '#FFFFFF' : '#09090B'} stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} vertical={false} />
                             <XAxis
                                 dataKey="month"
-                                stroke="#9CA3AF"
+                                stroke={theme.palette.text.secondary}
                                 fontSize={12}
                                 tickLine={false}
                                 axisLine={false}
                                 dy={10}
                             />
                             <YAxis
-                                stroke="#9CA3AF"
+                                stroke={theme.palette.text.secondary}
                                 fontSize={12}
                                 tickLine={false}
                                 axisLine={false}
@@ -74,11 +76,12 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ history, prediction }) => {
                             />
                             <Tooltip
                                 contentStyle={{
-                                    backgroundColor: '#111827',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: 8
+                                    backgroundColor: theme.palette.background.paper,
+                                    border: `1px solid ${theme.palette.divider}`,
+                                    borderRadius: 12,
+                                    boxShadow: theme.palette.mode === 'dark' ? '0 4px 6px -1px rgba(0, 0, 0, 0.5)' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                                 }}
-                                itemStyle={{ color: '#F3F4F6' }}
+                                itemStyle={{ color: theme.palette.text.primary, fontWeight: 500 }}
                             />
                             <Legend wrapperStyle={{ paddingTop: 20 }} />
 
@@ -86,21 +89,21 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ history, prediction }) => {
                                 type="monotone"
                                 dataKey="history"
                                 name="Historical Revenue"
-                                stroke="#00E5FF"
-                                strokeWidth={3}
+                                stroke={theme.palette.mode === 'dark' ? '#FFFFFF' : '#09090B'}
+                                strokeWidth={2}
                                 fillOpacity={1}
                                 fill="url(#colorHistory)"
-                                dot={{ fill: '#00E5FF', r: 4 }}
-                                activeDot={{ r: 6, strokeWidth: 0 }}
+                                dot={{ fill: theme.palette.mode === 'dark' ? '#FFFFFF' : '#09090B', r: 3, strokeWidth: 0 }}
+                                activeDot={{ r: 5, strokeWidth: 0 }}
                             />
                             <Line
                                 type="monotone"
                                 dataKey="prediction"
                                 name="AI Forecast"
                                 stroke="#8B5CF6"
-                                strokeWidth={3}
-                                strokeDasharray="5 5"
-                                dot={{ fill: '#8B5CF6', r: 4 }}
+                                strokeWidth={2}
+                                strokeDasharray="4 4"
+                                dot={{ fill: '#8B5CF6', r: 3, strokeWidth: 0 }}
                                 connectNulls
                             />
                         </ComposedChart>

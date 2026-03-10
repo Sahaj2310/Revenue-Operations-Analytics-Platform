@@ -3,6 +3,20 @@ import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead
 import { fetchCustomers } from '../api';
 import { Search } from '@mui/icons-material';
 import CustomerDrawer from '../components/CustomerDrawer';
+import { motion, Variants } from 'framer-motion';
+
+const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: { 
+        opacity: 1,
+        transition: { staggerChildren: 0.1 }
+    }
+};
+
+const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+};
 
 interface Customer {
     id: number;
@@ -38,78 +52,84 @@ const Customers = () => {
     };
 
     return (
-        <Stack spacing={3}>
-            <Box>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    Customer Management
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                    AI-powered Churn Risk Analysis for {filteredCustomers.length} customers. Click a customer to view details.
-                </Typography>
-            </Box>
+        <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="visible" spacing={3}>
+            <motion.div variants={itemVariants}>
+                <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                        Customer Management
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        AI-powered Churn Risk Analysis for {filteredCustomers.length} customers. Click a customer to view details.
+                    </Typography>
+                </Box>
+            </motion.div>
 
-            <TextField
-                fullWidth
-                placeholder="Search customers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                    startAdornment: (
-                        <InputAdornment position="start">
-                            <Search color="action" />
-                        </InputAdornment>
-                    ),
-                    sx: { bgcolor: 'background.paper', borderRadius: 2 }
-                }}
-            />
+            <motion.div variants={itemVariants}>
+                <TextField
+                    fullWidth
+                    placeholder="Search customers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <Search color="action" />
+                            </InputAdornment>
+                        ),
+                        sx: { bgcolor: 'background.paper', borderRadius: 2 }
+                    }}
+                />
+            </motion.div>
 
-            <TableContainer component={Paper} sx={{ borderRadius: 4, boxShadow: 1 }}>
-                <Table>
-                    <TableHead sx={{ bgcolor: 'background.default' }}>
-                        <TableRow>
-                            <TableCell>Customer Name</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Churn Risk (AI)</TableCell>
-                            <TableCell align="right">Total Revenue</TableCell>
-                            <TableCell align="right">Transactions</TableCell>
-                            <TableCell align="right">Last Active</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {filteredCustomers.slice(0, 50).map((customer) => (
-                            <TableRow
-                                key={customer.id}
-                                hover
-                                onClick={() => setSelectedCustomer(customer.name)}
-                                sx={{ cursor: 'pointer' }}
-                            >
-                                <TableCell sx={{ fontWeight: 500 }}>{customer.name}</TableCell>
-                                <TableCell>
-                                    <Chip
-                                        label={customer.status}
-                                        size="small"
-                                        variant="outlined"
-                                        sx={{ color: 'text.secondary', borderColor: 'divider' }}
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                    <Tooltip title={customer.churn_risk_reason || "No data available"} arrow placement="top">
-                                        <Chip
-                                            label={customer.churn_risk}
-                                            size="small"
-                                            color={getRiskColor(customer.churn_risk)}
-                                            sx={{ fontWeight: 600, cursor: 'help' }}
-                                        />
-                                    </Tooltip>
-                                </TableCell>
-                                <TableCell align="right">${customer.total_revenue.toLocaleString()}</TableCell>
-                                <TableCell align="right">{customer.transactions}</TableCell>
-                                <TableCell align="right">{customer.last_purchase}</TableCell>
+            <motion.div variants={itemVariants}>
+                <TableContainer component={Paper} sx={{ borderRadius: 4, boxShadow: 1 }}>
+                    <Table>
+                        <TableHead sx={{ bgcolor: 'background.default' }}>
+                            <TableRow>
+                                <TableCell>Customer Name</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Churn Risk (AI)</TableCell>
+                                <TableCell align="right">Total Revenue</TableCell>
+                                <TableCell align="right">Transactions</TableCell>
+                                <TableCell align="right">Last Active</TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                            {filteredCustomers.slice(0, 50).map((customer) => (
+                                <TableRow
+                                    key={customer.id}
+                                    hover
+                                    onClick={() => setSelectedCustomer(customer.name)}
+                                    sx={{ cursor: 'pointer' }}
+                                >
+                                    <TableCell sx={{ fontWeight: 500 }}>{customer.name}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={customer.status}
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ color: 'text.secondary', borderColor: 'divider' }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Tooltip title={customer.churn_risk_reason || "No data available"} arrow placement="top">
+                                            <Chip
+                                                label={customer.churn_risk}
+                                                size="small"
+                                                color={getRiskColor(customer.churn_risk)}
+                                                sx={{ fontWeight: 600, cursor: 'help' }}
+                                            />
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell align="right">${customer.total_revenue.toLocaleString()}</TableCell>
+                                    <TableCell align="right">{customer.transactions}</TableCell>
+                                    <TableCell align="right">{customer.last_purchase}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </motion.div>
 
             <CustomerDrawer
                 open={!!selectedCustomer}

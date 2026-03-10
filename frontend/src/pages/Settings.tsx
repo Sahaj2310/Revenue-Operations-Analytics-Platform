@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Box, Typography, Switch, FormControlLabel, Button, Divider, Alert, Stack } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, Switch, FormControlLabel, Button, Alert, Stack } from '@mui/material';
 import { useColorMode } from '../context/ColorModeContext';
 import { clearData } from '../api';
 import { DeleteOutline, DarkMode } from '@mui/icons-material';

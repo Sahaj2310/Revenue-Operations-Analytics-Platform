@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Card, CardContent, Typography, Button, Box, CircularProgress, Stack } from '@mui/material';
-import { CloudUpload, InsertDriveFile, CheckCircle } from '@mui/icons-material';
+import { Card, CardContent, Typography, Box, CircularProgress, Stack } from '@mui/material';
+import { CloudUpload, CheckCircle } from '@mui/icons-material';
 
 interface UploadCardProps {
     onUpload: (file: File) => Promise<void>;
@@ -33,27 +33,27 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUpload }) => {
 
     return (
         <Card sx={{ height: '100%' }}>
-            <CardContent>
-                <Typography variant="h6" gutterBottom>
+            <CardContent sx={{ p: 3 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', mb: 2 }}>
                     Data Ingestion
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Upload your CSV revenue data to update the dashboard.
                 </Typography>
 
                 <Box
                     sx={{
-                        border: '2px dashed rgba(255,255,255,0.1)',
-                        borderRadius: 2,
-                        p: 3,
+                        border: '1px dashed',
+                        borderColor: 'divider',
+                        borderRadius: 3,
+                        p: 4,
                         textAlign: 'center',
-                        bgcolor: 'rgba(255,255,255,0.02)',
+                        bgcolor: 'background.default',
                         transition: 'all 0.2s',
+                        cursor: 'pointer',
                         '&:hover': {
-                            bgcolor: 'rgba(255,255,255,0.04)',
                             borderColor: 'primary.main',
+                            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
                         }
                     }}
+                    onClick={!loading ? handleButtonClick : undefined}
                 >
                     <input
                         type="file"
@@ -65,33 +65,38 @@ const UploadCard: React.FC<UploadCardProps> = ({ onUpload }) => {
 
                     {loading ? (
                         <Stack alignItems="center" spacing={2}>
-                            <CircularProgress size={40} color="primary" />
+                            <CircularProgress size={32} color="primary" />
                             <Typography variant="body2" color="text.secondary">Processing Data...</Typography>
                         </Stack>
                     ) : (
                         <Stack alignItems="center" spacing={2}>
                             <Box sx={{
-                                p: 2,
+                                width: 48,
+                                height: 48,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 borderRadius: '50%',
-                                bgcolor: 'rgba(0, 229, 255, 0.1)',
-                                color: 'primary.main'
+                                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                                color: 'text.secondary'
                             }}>
-                                <CloudUpload fontSize="large" />
+                                <CloudUpload fontSize="small" />
                             </Box>
+                            
                             <Box>
-                                <Button
-                                    variant="contained"
-                                    onClick={handleButtonClick}
-                                    disabled={loading}
-                                >
-                                    Select CSV File
-                                </Button>
+                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary', mb: 0.5 }}>
+                                    Click to upload CSV
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    Update your revenue metrics
+                                </Typography>
                             </Box>
+
                             {fileName && (
-                                <Stack direction="row" alignItems="center" spacing={1}>
+                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 2 }}>
                                     <CheckCircle fontSize="small" color="success" />
                                     <Typography variant="caption" color="text.secondary">
-                                        Last uploaded: {fileName}
+                                        Last: {fileName}
                                     </Typography>
                                 </Stack>
                             )}

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useMemo } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, Box } from '@mui/material';
 import { getTheme } from './theme';
 import { ColorModeProvider, useColorMode } from './context/ColorModeContext';
@@ -32,7 +32,15 @@ function AppContent() {
                         <ProtectedRoute>
                             <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
                                 <Sidebar />
-                                <Box component="main" sx={{ flexGrow: 1, ml: '260px', p: 4, overflowX: 'hidden' }}>
+                                <Box component="main" sx={{ 
+                                    flexGrow: 1, 
+                                    ml: { xs: 0, md: '260px' }, 
+                                    p: { xs: 2, md: 4, lg: 6 }, 
+                                    overflowX: 'hidden',
+                                    maxWidth: '1600px',
+                                    margin: '0 auto',
+                                    width: '100%'
+                                }}>
                                     <Routes>
                                         <Route path="/" element={<Dashboard />} />
                                         <Route path="/analytics" element={<Analytics />} />

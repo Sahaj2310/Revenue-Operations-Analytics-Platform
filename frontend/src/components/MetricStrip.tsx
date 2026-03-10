@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid, Box } from '@mui/material';
+import { Grid } from '@mui/material';
 import { AccountBalanceWallet, People, TrendingUp, AttachMoney } from '@mui/icons-material';
 import StatCard from './StatCard';
 import { AdvancedAnalyticsResponse } from '../types';
@@ -14,47 +14,44 @@ const MetricStrip: React.FC<MetricStripProps> = ({ data }) => {
 
     return (
         <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} lg={3}>
                 <StatCard
                     title="Total Revenue (Period)"
                     value={data ? `$${data.mrr.toLocaleString()}` : '$0.00'}
                     icon={<AccountBalanceWallet />}
-                    color="#00E5FF"
+                    color="text.primary"
                     trend={data && data.growth_rate >= 0 ? "up" : "down"}
-                    trendValue={data ? `${data.growth_rate}%` : ''}
+                    trendValue={data ? `${Math.abs(data.growth_rate)}% vs last` : ''}
                     sparklineData={data?.sparkline}
                     onClick={() => navigate('/analytics')}
                 />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} lg={3}>
                 <StatCard
                     title="Active Customers"
-                    value={data ? data.active_customers : '0'}
+                    value={data ? data.active_customers.toLocaleString() : '0'}
                     icon={<People />}
-                    color="#8B5CF6"
-                    trend="neutral"
-                    trendValue="Stable"
+                    trend={data && data.active_customers > 0 ? "up" : "neutral"}
+                    trendValue={data && data.active_customers > 0 ? "Growing" : "Stable"}
                     onClick={() => navigate('/customers')}
                 />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} lg={3}>
                 <StatCard
-                    title="ARPU"
+                    title="Average Revenue Per User"
                     value={data ? `$${data.arpu.toFixed(2)}` : '$0.00'}
                     icon={<AttachMoney />}
-                    color="#F59E0B"
                     trend="up"
-                    trendValue="+2.4%"
+                    trendValue="+2.4% avg"
                 />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} lg={3}>
                 <StatCard
                     title="Growth Rate"
                     value={data ? `${data.growth_rate}%` : '0%'}
                     icon={<TrendingUp />}
-                    color={data && data.growth_rate >= 0 ? "#10B981" : "#EF4444"}
                     trend={data && data.growth_rate >= 0 ? "up" : "down"}
-                    trendValue="Month over Month"
+                    trendValue="MoM"
                 />
             </Grid>
         </Grid>

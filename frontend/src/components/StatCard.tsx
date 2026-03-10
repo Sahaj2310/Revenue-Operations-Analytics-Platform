@@ -21,7 +21,7 @@ const StatCard: React.FC<StatCardProps> = ({
     icon,
     trend,
     trendValue,
-    color = '#00E5FF',
+    color = 'text.primary',
     sparklineData = [],
     onClick
 }) => {
@@ -33,37 +33,64 @@ const StatCard: React.FC<StatCardProps> = ({
                 position: 'relative',
                 overflow: 'hidden',
                 cursor: onClick ? 'pointer' : 'default',
-                transition: 'transform 0.2s, box-shadow 0.2s',
+                transition: 'all 0.2s ease-in-out',
                 '&:hover': onClick ? {
-                    transform: 'translateY(-4px)',
-                    boxShadow: 6
+                    transform: 'translateY(-2px)',
+                    boxShadow: 4
                 } : {}
             }}
         >
-            <CardContent>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
-                    <Box sx={{
-                        p: 1.5,
-                        borderRadius: 3,
-                        bgcolor: `${color}15`, // 15% opacity
-                        color: color,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
-                        {icon}
+            <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                        {title}
+                    </Typography>
+                    <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center' }}>
+                        {React.isValidElement(icon) ? React.cloneElement(icon as React.ReactElement, { sx: { fontSize: 20 } }) : icon}
                     </Box>
+                </Stack>
+
+                <Stack direction="row" alignItems="baseline" spacing={2}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: '-0.02em', color: 'text.primary' }}>
+                        {value}
+                    </Typography>
+                </Stack>
+
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 2 }}>
+                    {trend ? (
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <Box sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                bgcolor: trend === 'up' ? 'rgba(16, 185, 129, 0.1)' : trend === 'down' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(113, 113, 122, 0.1)',
+                                color: trend === 'up' ? '#10B981' : trend === 'down' ? '#EF4444' : 'text.secondary',
+                                px: 1,
+                                py: 0.25,
+                                borderRadius: '9999px',
+                            }}>
+                                {trend === 'up' && <TrendingUp sx={{ fontSize: 14, mr: 0.5 }} />}
+                                {trend === 'down' && <TrendingDown sx={{ fontSize: 14, mr: 0.5 }} />}
+                                {trend === 'neutral' && <Remove sx={{ fontSize: 14, mr: 0.5 }} />}
+                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                    {trendValue}
+                                </Typography>
+                            </Box>
+                        </Stack>
+                    ) : (
+                        <Box /> // flex spacer layout
+                    )}
+
                     {/* Sparkline (Mini Chart) */}
                     {sparklineData.length > 0 && (
-                        <Box sx={{ width: 80, height: 40 }}>
+                        <Box sx={{ width: 80, height: 32 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={sparklineData}>
                                     <Area
                                         type="monotone"
                                         dataKey="value"
-                                        stroke={color}
-                                        fill={color}
-                                        fillOpacity={0.2}
+                                        stroke={color === 'text.primary' ? '#8B5CF6' : color}
+                                        fill={color === 'text.primary' ? '#8B5CF6' : color}
+                                        fillOpacity={0.15}
                                         strokeWidth={2}
                                     />
                                 </AreaChart>
@@ -71,31 +98,6 @@ const StatCard: React.FC<StatCardProps> = ({
                         </Box>
                     )}
                 </Stack>
-
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {title}
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                    {value}
-                </Typography>
-
-                {trend && (
-                    <Stack direction="row" alignItems="center" spacing={0.5}>
-                        {trend === 'up' && <TrendingUp sx={{ fontSize: 16, color: '#10B981' }} />}
-                        {trend === 'down' && <TrendingDown sx={{ fontSize: 16, color: '#EF4444' }} />}
-                        {trend === 'neutral' && <Remove sx={{ fontSize: 16, color: 'text.secondary' }} />}
-
-                        <Typography
-                            variant="caption"
-                            sx={{
-                                color: trend === 'up' ? '#10B981' : trend === 'down' ? '#EF4444' : 'text.secondary',
-                                fontWeight: 600
-                            }}
-                        >
-                            {trendValue}
-                        </Typography>
-                    </Stack>
-                )}
             </CardContent>
         </Card>
     );

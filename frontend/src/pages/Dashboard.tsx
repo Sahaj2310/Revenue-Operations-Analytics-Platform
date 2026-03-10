@@ -1,10 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Grid, Stack, Typography, CircularProgress, Box, FormControl, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import MetricStrip from '../components/MetricStrip';
 import RevenueChart from '../components/RevenueChart';
 import UploadCard from '../components/UploadCard';
 import { fetchStats, getForecast, fetchAdvancedAnalytics, uploadFile } from '../api';
 import { StatsResponse, MonthlyRevenue, AdvancedAnalyticsResponse } from '../types';
+import { motion, Variants } from 'framer-motion';
+
+const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: { 
+        opacity: 1,
+        transition: { staggerChildren: 0.1 }
+    }
+};
+
+const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+};
 
 const Dashboard = () => {
     const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -60,42 +74,46 @@ const Dashboard = () => {
     }
 
     return (
-        <Stack spacing={3}>
+        <Stack component={motion.div} variants={containerVariants} initial="hidden" animate="visible" spacing={3}>
             {/* Header with Filter */}
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                        Dashboard Overview
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary">
-                        Real-time revenue intelligence and AI forecasting.
-                    </Typography>
-                </Box>
+            <motion.div variants={itemVariants}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Box>
+                        <Typography variant="h3" sx={{ fontWeight: 700, letterSpacing: '-0.02em', color: 'text.primary', mb: 0.5 }}>
+                            Overview
+                        </Typography>
+                        <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                            Real-time revenue intelligence
+                        </Typography>
+                    </Box>
 
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <Select
-                        value={timeRange}
-                        onChange={handleRangeChange}
-                        sx={{ bgcolor: 'background.paper' }}
-                    >
-                        <MenuItem value="7d">Last 7 Days</MenuItem>
-                        <MenuItem value="30d">Last 30 Days</MenuItem>
-                        <MenuItem value="90d">Last Quarter</MenuItem>
-                        <MenuItem value="12m">Last Year</MenuItem>
-                    </Select>
-                </FormControl>
-            </Stack>
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <Select
+                            value={timeRange}
+                            onChange={handleRangeChange}
+                            sx={{ bgcolor: 'background.paper' }}
+                        >
+                            <MenuItem value="7d">Last 7 Days</MenuItem>
+                            <MenuItem value="30d">Last 30 Days</MenuItem>
+                            <MenuItem value="90d">Last Quarter</MenuItem>
+                            <MenuItem value="12m">Last Year</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Stack>
+            </motion.div>
 
-            <MetricStrip data={advanced} />
+            <motion.div variants={itemVariants}>
+                <MetricStrip data={advanced} />
+            </motion.div>
 
             <Grid container spacing={3}>
-                <Grid item xs={12} lg={8}>
+                <Grid item xs={12} lg={8} component={motion.div} variants={itemVariants}>
                     <RevenueChart
                         history={stats?.monthly_revenue || []}
                         prediction={forecast}
                     />
                 </Grid>
-                <Grid item xs={12} lg={4}>
+                <Grid item xs={12} lg={4} component={motion.div} variants={itemVariants}>
                     <UploadCard onUpload={handleUpload} />
                 </Grid>
             </Grid>

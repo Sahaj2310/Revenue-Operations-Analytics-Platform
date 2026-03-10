@@ -9,6 +9,9 @@ from datetime import timedelta
 from database import create_db_and_tables, get_session, engine
 from models import RevenueData, User
 from ml_logic import train_and_predict, predict_churn_risk
+from ai_service import generate_personalized_pitch, generate_executive_summary
+from report_service import generate_pdf_report
+from fastapi.responses import Response
 from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES, 
     create_access_token, 
@@ -116,7 +119,8 @@ def upload_csv(
                 date=row['date'],
                 amount=float(row['amount']),
                 customer_name=str(row['customer_name']),
-                category=str(row['category'])
+                category=str(row['category']),
+                user_id=current_user.id
             )
             session.add(revenue_entry)
         
@@ -127,8 +131,8 @@ def upload_csv(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/stats")
-def get_stats(session: Session = Depends(get_session)):
-    statement = select(RevenueData)
+def get_stats(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    statement = select(RevenueData).where(RevenueData.user_id == current_user.id)
     results = session.exec(statement).all()
     
     if not results:
@@ -169,8 +173,8 @@ def get_stats(session: Session = Depends(get_session)):
     }
 
 @app.get("/analytics/advanced")
-def get_advanced_analytics(time_range: str = "30d", session: Session = Depends(get_session)):
-    statement = select(RevenueData)
+def get_advanced_analytics(time_range: str = "30d", session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    statement = select(RevenueData).where(RevenueData.user_id == current_user.id)
     results = session.exec(statement).all()
     
     if not results:
@@ -257,8 +261,8 @@ def get_advanced_analytics(time_range: str = "30d", session: Session = Depends(g
     }
 
 @app.get("/forecast")
-def get_forecast(session: Session = Depends(get_session)):
-    statement = select(RevenueData)
+def get_forecast(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    statement = select(RevenueData).where(RevenueData.user_id == current_user.id)
     results = session.exec(statement).all()
     
     if not results:
@@ -276,7 +280,7 @@ def get_forecast(session: Session = Depends(get_session)):
 
 @app.delete("/data")
 def clear_data(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
-    statement = delete(RevenueData)
+    statement = delete(RevenueData).where(RevenueData.user_id == current_user.id)
     session.exec(statement)
     session.commit()
     return {"message": "All data cleared successfully"}
@@ -287,8 +291,8 @@ from ml_logic import train_and_predict, predict_churn_risk
 # ... existing code ...
 
 @app.get("/customers")
-def get_customers(session: Session = Depends(get_session)):
-    statement = select(RevenueData)
+def get_customers(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    statement = select(RevenueData).where(RevenueData.user_id == current_user.id)
     results = session.exec(statement).all()
     
     if not results:
@@ -348,8 +352,8 @@ def get_customers(session: Session = Depends(get_session)):
     return customers_list
 
 @app.get("/customers/{customer_name}")
-def get_customer_details(customer_name: str, session: Session = Depends(get_session)):
-    statement = select(RevenueData).where(RevenueData.customer_name == customer_name).order_by(RevenueData.date.desc())
+def get_customer_details(customer_name: str, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    statement = select(RevenueData).where(RevenueData.customer_name == customer_name, RevenueData.user_id == current_user.id).order_by(RevenueData.date.desc())
     results = session.exec(statement).all()
     
     if not results:
@@ -365,3 +369,122 @@ def get_customer_details(customer_name: str, session: Session = Depends(get_sess
         for row in results
     ]
     return transactions
+
+@app.post("/customers/{customer_name}/generate-pitch")
+def generate_customer_pitch(customer_name: str, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    # Get all transactions for context
+    statement = select(RevenueData).where(
+        RevenueData.customer_name == customer_name,
+        RevenueData.user_id == current_user.id
+    ).order_by(RevenueData.date.desc())
+    results = session.exec(statement).all()
+    
+    if not results:
+        raise HTTPException(status_code=404, detail="Customer not found or has no data")
+
+    # Aggregate Data
+    df = pd.DataFrame([row.dict() for row in results])
+    df['date'] = pd.to_datetime(df['date'])
+    
+    total_revenue = float(df['amount'].sum())
+    transaction_count = len(df)
+    
+    recent_transactions = [
+        {"date": row['date'].strftime('%Y-%m-%d'), "category": row['category'], "amount": float(row['amount'])}
+        for _, row in df.head(5).iterrows()
+    ]
+    
+    # Get Churn Risk Context
+    churn_risks = predict_churn_risk(df)
+    risk_data = churn_risks.get(customer_name, {"risk": "Unknown", "reason": "Not enough data"})
+
+    # Call AI Service
+    try:
+        pitch = generate_personalized_pitch(
+            customer_name=customer_name,
+            total_revenue=total_revenue,
+            transaction_count=transaction_count,
+            recent_transactions=recent_transactions,
+            churn_risk=risk_data['risk'],
+            churn_reason=risk_data['reason']
+        )
+        return {"pitch": pitch}
+    except ValueError as ve:
+        raise HTTPException(status_code=500, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="An error occurred while generating the pitch.")
+
+@app.get("/reports/executive-summary")
+def get_executive_summary_report(time_range: str = "30d", session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    statement = select(RevenueData).where(RevenueData.user_id == current_user.id)
+    results = session.exec(statement).all()
+    
+    if not results:
+        raise HTTPException(status_code=404, detail="No data available to generate report")
+        
+    data = [row.dict() for row in results]
+    df = pd.DataFrame(data)
+    df['date'] = pd.to_datetime(df['date'])
+    
+    # Calculate Metrics (Similar to Advanced Analytics)
+    max_date = df['date'].max()
+    days = 30
+    if time_range == "7d": days = 7
+    elif time_range == "90d": days = 90
+    elif time_range == "12m": days = 365
+
+    start_date = max_date - pd.Timedelta(days=days)
+    current_df = df[(df['date'] > start_date) & (df['date'] <= max_date)]
+    prev_start = start_date - pd.Timedelta(days=days)
+    prev_df = df[(df['date'] > prev_start) & (df['date'] <= start_date)]
+    
+    current_revenue = float(current_df['amount'].sum())
+    prev_revenue = float(prev_df['amount'].sum())
+    
+    growth_rate = 0.0
+    if prev_revenue > 0:
+        growth_rate = ((current_revenue - prev_revenue) / prev_revenue) * 100
+        
+    active_customers = int(current_df['customer_name'].nunique())
+    arpu = float(current_revenue / active_customers) if active_customers > 0 else 0
+    
+    # Top Customers
+    top_customers_df = current_df.groupby('customer_name')['amount'].sum().nlargest(5).reset_index()
+    top_customers = [
+        {"customer_name": row['customer_name'], "revenue": float(row['amount'])}
+        for _, row in top_customers_df.iterrows()
+    ]
+    
+    # Generate AI Summary
+    time_label = "Last 30 Days"
+    if time_range == "7d": time_label = "Last 7 Days"
+    elif time_range == "90d": time_label = "Last 90 Days"
+    elif time_range == "12m": time_label = "Last 12 Months"
+    
+    print("Generating AI Executive Summary...")
+    ai_summary = generate_executive_summary(
+        total_revenue=current_revenue,
+        active_customers=active_customers,
+        arpu=arpu,
+        growth_rate=growth_rate,
+        time_range_label=time_label,
+        top_customers=top_customers
+    )
+    
+    # Generate PDF
+    print("Generating PDF layout...")
+    pdf_bytes = generate_pdf_report(
+        total_revenue=current_revenue,
+        active_customers=active_customers,
+        arpu=arpu,
+        growth_rate=growth_rate,
+        time_range_label=time_label,
+        top_customers=top_customers,
+        ai_summary=ai_summary
+    )
+    
+    # Return as downloadable file
+    headers = {
+        'Content-Disposition': f'attachment; filename="Executive_Revenue_Report_{time_range}.pdf"'
+    }
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)

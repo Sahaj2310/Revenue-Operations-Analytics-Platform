@@ -8,6 +8,7 @@ class RevenueData(SQLModel, table=True):
     amount: float
     customer_name: str
     category: str
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

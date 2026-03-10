@@ -72,4 +72,16 @@ export const fetchCustomerDetails = async (name: string): Promise<any[]> => {
     return response.data;
 };
 
+export const generateCustomerPitch = async (name: string): Promise<{ pitch: string }> => {
+    const response = await api.post(`/customers/${name}/generate-pitch`);
+    return response.data;
+};
+
+export const downloadExecutiveReport = async (range: string = '30d'): Promise<Blob> => {
+    const response = await api.get(`/reports/executive-summary?time_range=${range}`, {
+        responseType: 'blob' // Important for handling binary files like PDF
+    });
+    return response.data;
+};
+
 export default api;

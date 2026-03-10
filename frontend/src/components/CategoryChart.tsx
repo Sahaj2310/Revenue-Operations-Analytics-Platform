@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { CategoryData } from '../types';
@@ -27,7 +26,7 @@ const CategoryChart: React.FC<CategoryChartProps> = ({ data }) => {
                                 dataKey="value"
                                 stroke="none"
                             >
-                                {data.map((entry, index) => (
+                                {data.map((_entry, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>

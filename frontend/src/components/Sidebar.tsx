@@ -27,7 +27,7 @@ const Sidebar = () => {
         <Box sx={{
             width: 260,
             height: '100vh',
-            bgcolor: 'background.paper',
+            bgcolor: 'background.default', // Use background default instead of paper for a flatter look
             borderRight: 1,
             borderColor: 'divider',
             display: 'flex',
@@ -37,84 +37,68 @@ const Sidebar = () => {
             top: 0
         }}>
             {/* Logo Area */}
-            <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ p: 3, pt: 4, display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
                 <Box sx={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 1.5,
-                    background: 'linear-gradient(135deg, #00C4FF, #8B5CF6)',
+                    width: 32,
+                    height: 32,
+                    borderRadius: '8px',
+                    bgcolor: 'primary.main',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 4px 10px rgba(0, 229, 255, 0.3)'
                 }}>
-                    <AutoAwesome sx={{ color: 'white', fontSize: 22 }} />
+                    <AutoAwesome sx={{ color: 'background.paper', fontSize: 20 }} />
                 </Box>
-                <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: -0.5, color: 'text.primary' }}>
-                    RevOps <span style={{ color: theme.palette.primary.main }}>AI</span>
+                <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: '-0.02em', color: 'text.primary' }}>
+                    RevOps
                 </Typography>
             </Box>
 
             {/* Menu */}
-            <List sx={{ px: 2, mt: 2 }}>
+            <List sx={{ px: 2 }}>
                 {menuItems.map((item) => {
                     const active = location.pathname === item.path;
                     return (
-                        <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+                        <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
                             <ListItemButton
                                 onClick={() => navigate(item.path)}
                                 sx={{
-                                    borderRadius: 3,
-                                    bgcolor: active ? (isDark ? 'rgba(0, 229, 255, 0.1)' : 'rgba(2, 132, 199, 0.1)') : 'transparent',
-                                    color: active ? 'primary.main' : 'text.secondary',
+                                    borderRadius: '9999px', // Pill shape for sidebar items
+                                    py: 1,
+                                    px: 2,
+                                    bgcolor: active ? (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)') : 'transparent',
+                                    color: active ? 'text.primary' : 'text.secondary',
                                     '&:hover': {
-                                        bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)',
+                                        bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                                         color: 'text.primary'
                                     }
                                 }}
                             >
-                                <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
-                                    {item.icon}
+                                <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
+                                    {React.cloneElement(item.icon, { sx: { fontSize: 20 } })}
                                 </ListItemIcon>
-                                <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: 500, fontSize: '0.95rem' }} />
+                                <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: active ? 600 : 500, fontSize: '0.9rem' }} />
                             </ListItemButton>
                         </ListItem>
                     );
                 })}
             </List>
 
-            <Box sx={{ mt: 'auto', p: 3 }}>
-                <Box sx={{
-                    p: 2,
-                    borderRadius: 3,
-                    background: isDark
-                        ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(0, 229, 255, 0.05))'
-                        : 'linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(2, 132, 199, 0.05))',
-                    border: 1,
-                    borderColor: 'divider',
-                    mb: 2
-                }}>
-                    <Typography variant="subtitle2" sx={{ color: 'text.primary', mb: 0.5 }}>Pro Plan</Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1.5 }}>
-                        You have 12 days left in your trial.
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600, cursor: 'pointer' }}>
-                        Upgrade Now →
-                    </Typography>
-                </Box>
-
+            <Box sx={{ mt: 'auto', p: 3, pb: 4 }}>
                 <ListItemButton
                     onClick={handleLogout}
                     sx={{
-                        borderRadius: 3,
-                        color: 'error.main',
-                        '&:hover': { bgcolor: 'error.lighter', color: 'error.dark' }
+                        borderRadius: '9999px',
+                        color: 'text.secondary',
+                        py: 1,
+                        px: 2,
+                        '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: 'text.primary' }
                     }}
                 >
-                    <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
-                        <Logout />
+                    <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
+                        <Logout sx={{ fontSize: 20 }}/>
                     </ListItemIcon>
-                    <ListItemText primary="Logout" />
+                    <ListItemText primary="Logout" primaryTypographyProps={{ fontWeight: 500, fontSize: '0.9rem' }} />
                 </ListItemButton>
             </Box>
         </Box>
