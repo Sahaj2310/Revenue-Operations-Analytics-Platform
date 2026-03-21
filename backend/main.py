@@ -2,9 +2,12 @@ from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select, delete
-from typing import List
+from typing import List, Optional
 import pandas as pd
 import io
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from datetime import timedelta
 from database import create_db_and_tables, get_session, engine
 from models import RevenueData, User
@@ -44,11 +47,17 @@ def on_startup():
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
 def register(user: User, session: Session = Depends(get_session)):
-    # Check if user exists
+    # Check if user exists by username
     statement = select(User).where(User.username == user.username)
     existing_user = session.exec(statement).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already registered")
+        
+    # Check if user exists by email
+    statement_email = select(User).where(User.email == user.email)
+    existing_email = session.exec(statement_email).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email already registered")
     
     # Create new user
     user.hashed_password = get_password_hash(user.hashed_password)
@@ -173,7 +182,13 @@ def get_stats(session: Session = Depends(get_session), current_user: User = Depe
     }
 
 @app.get("/analytics/advanced")
-def get_advanced_analytics(time_range: str = "30d", session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+def get_advanced_analytics(
+    time_range: str = "30d", 
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None, 
+    session: Session = Depends(get_session), 
+    current_user: User = Depends(get_current_user)
+):
     statement = select(RevenueData).where(RevenueData.user_id == current_user.id)
     results = session.exec(statement).all()
     
@@ -189,23 +204,33 @@ def get_advanced_analytics(time_range: str = "30d", session: Session = Depends(g
     
     # Determine Date Range
     max_date = df['date'].max()
-    if time_range == "7d":
-        days = 7
-    elif time_range == "90d":
-        days = 90
-    elif time_range == "12m":
-        days = 365
+    if time_range == "custom" and start_date and end_date:
+        final_end = pd.to_datetime(end_date)
+        final_start = pd.to_datetime(start_date)
+        diff_days = (final_end - final_start).days
+        prev_start = final_start - pd.Timedelta(days=diff_days)
+    elif time_range == "ytd":
+        final_end = max_date
+        final_start = pd.Timestamp(year=pd.Timestamp.now().year, month=1, day=1)
+        prev_start = pd.Timestamp(year=pd.Timestamp.now().year - 1, month=1, day=1)
     else:
-        days = 30 # Default
-
-    start_date = max_date - pd.Timedelta(days=days)
+        if time_range == "7d":
+            days = 7
+        elif time_range == "90d":
+            days = 90
+        elif time_range == "12m":
+            days = 365
+        else:
+            days = 30 # Default
+        final_end = max_date
+        final_start = max_date - pd.Timedelta(days=days)
+        prev_start = final_start - pd.Timedelta(days=days)
     
     # Filter Data for Current Period
-    current_df = df[(df['date'] > start_date) & (df['date'] <= max_date)]
+    current_df = df[(df['date'] >= final_start) & (df['date'] <= final_end)]
     
     # Filter Data for Previous Period (for Growth Rate)
-    prev_start = start_date - pd.Timedelta(days=days)
-    prev_df = df[(df['date'] > prev_start) & (df['date'] <= start_date)]
+    prev_df = df[(df['date'] >= prev_start) & (df['date'] < final_start)]
     
     # 1. Total Revenue in Range (acting as MRR/Revenue for the period)
     current_revenue = float(current_df['amount'].sum())
@@ -414,8 +439,46 @@ def generate_customer_pitch(customer_name: str, session: Session = Depends(get_s
     except Exception as e:
         raise HTTPException(status_code=500, detail="An error occurred while generating the pitch.")
 
+def create_pie_chart(category_list):
+    if not category_list: return None
+    labels = [c['name'] for c in category_list]
+    sizes = [c['value'] for c in category_list]
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+    ax.axis('equal')
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    return buf.getvalue()
+
+def create_scatter_chart(scatter_data):
+    if not scatter_data: return None
+    fig, ax = plt.subplots(figsize=(6, 4))
+    
+    colors = {'High Risk': '#d32f2f', 'Medium Risk': '#ed6c02', 'Low Risk': '#2e7d32', 'Unknown': '#9e9e9e'}
+    
+    for entry in scatter_data:
+        ax.scatter(entry['recency'], entry['revenue'], c=colors.get(entry['risk'], '#9e9e9e'), alpha=0.7)
+        
+    ax.set_xlabel('Days Since Last Purchase')
+    ax.set_ylabel('Total Revenue ($)')
+    ax.set_title('Churn Risk Analysis')
+    ax.grid(True, linestyle='--', alpha=0.6)
+    
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    return buf.getvalue()
+
 @app.get("/reports/executive-summary")
-def get_executive_summary_report(time_range: str = "30d", session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+def get_executive_summary_report(
+    time_range: str = "30d", 
+    risk_levels: Optional[str] = None, 
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None, 
+    session: Session = Depends(get_session), 
+    current_user: User = Depends(get_current_user)
+):
     statement = select(RevenueData).where(RevenueData.user_id == current_user.id)
     results = session.exec(statement).all()
     
@@ -428,15 +491,36 @@ def get_executive_summary_report(time_range: str = "30d", session: Session = Dep
     
     # Calculate Metrics (Similar to Advanced Analytics)
     max_date = df['date'].max()
-    days = 30
-    if time_range == "7d": days = 7
-    elif time_range == "90d": days = 90
-    elif time_range == "12m": days = 365
+    if time_range == "custom" and start_date and end_date:
+        final_end = pd.to_datetime(end_date)
+        final_start = pd.to_datetime(start_date)
+        days_diff = (final_end - final_start).days
+        prev_start = final_start - pd.Timedelta(days=days_diff)
+        time_label = f"Custom: {start_date} to {end_date}"
+    elif time_range == "ytd":
+        final_end = max_date
+        final_start = pd.Timestamp(year=pd.Timestamp.now().year, month=1, day=1)
+        prev_start = pd.Timestamp(year=pd.Timestamp.now().year - 1, month=1, day=1)
+        time_label = "YTD"
+    else:
+        if time_range == "7d":
+            days = 7
+            time_label = "7 days"
+        elif time_range == "90d":
+            days = 90
+            time_label = "Quarter"
+        elif time_range == "12m":
+            days = 365
+            time_label = "Year"
+        else:
+            days = 30 # Default
+            time_label = "Month"
+        final_end = max_date
+        final_start = max_date - pd.Timedelta(days=days)
+        prev_start = final_start - pd.Timedelta(days=days)
 
-    start_date = max_date - pd.Timedelta(days=days)
-    current_df = df[(df['date'] > start_date) & (df['date'] <= max_date)]
-    prev_start = start_date - pd.Timedelta(days=days)
-    prev_df = df[(df['date'] > prev_start) & (df['date'] <= start_date)]
+    current_df = df[(df['date'] >= final_start) & (df['date'] <= final_end)]
+    prev_df = df[(df['date'] >= prev_start) & (df['date'] < final_start)]
     
     current_revenue = float(current_df['amount'].sum())
     prev_revenue = float(prev_df['amount'].sum())
@@ -455,12 +539,36 @@ def get_executive_summary_report(time_range: str = "30d", session: Session = Dep
         for _, row in top_customers_df.iterrows()
     ]
     
-    # Generate AI Summary
-    time_label = "Last 30 Days"
-    if time_range == "7d": time_label = "Last 7 Days"
-    elif time_range == "90d": time_label = "Last 90 Days"
-    elif time_range == "12m": time_label = "Last 12 Months"
+    # Generate Charts
+    category_split = current_df.groupby('category')['amount'].sum().reset_index()
+    category_list = [{"name": row['category'], "value": float(row['amount'])} for _, row in category_split.iterrows()]
+    pie_chart_bytes = create_pie_chart(category_list)
     
+    churn_risks = predict_churn_risk(df)
+    customer_stats = df.groupby('customer_name').agg({'amount': 'sum', 'date': 'max'}).reset_index()
+    now = pd.Timestamp.now()
+    
+    scatter_data = []
+    risk_customers_dict = {'High Risk': [], 'Medium Risk': [], 'Low Risk': []}
+    
+    for _, row in customer_stats.iterrows():
+        cname = row['customer_name']
+        risk_data = churn_risks.get(cname, {"risk": "Unknown", "reason": ""})
+        risk = risk_data["risk"]
+        recency = (now - row['date']).days
+        scatter_data.append({'recency': recency, 'revenue': row['amount'], 'risk': risk, 'name': cname})
+        
+        if risk in risk_customers_dict:
+            risk_customers_dict[risk].append({'name': cname, 'revenue': row['amount'], 'reason': risk_data['reason']})
+            
+    scatter_chart_bytes = create_scatter_chart(scatter_data)
+    
+    # Filter requested risk lists
+    requested_risks = [r.strip() for r in risk_levels.split(',')] if risk_levels else []
+    filtered_risk_lists = {r: sorted(risk_customers_dict[r], key=lambda x: x['revenue'], reverse=True) 
+                           for r in requested_risks if r in risk_customers_dict}
+    
+    # Generate AI Summary
     print("Generating AI Executive Summary...")
     ai_summary = generate_executive_summary(
         total_revenue=current_revenue,
@@ -480,7 +588,10 @@ def get_executive_summary_report(time_range: str = "30d", session: Session = Dep
         growth_rate=growth_rate,
         time_range_label=time_label,
         top_customers=top_customers,
-        ai_summary=ai_summary
+        ai_summary=ai_summary,
+        pie_chart_bytes=pie_chart_bytes,
+        scatter_chart_bytes=scatter_chart_bytes,
+        filtered_risk_lists=filtered_risk_lists
     )
     
     # Return as downloadable file

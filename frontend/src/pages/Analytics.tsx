@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Grid, Stack, Typography, CircularProgress, Box, FormControl, Select, MenuItem, SelectChangeEvent, useTheme } from '@mui/material';
+import { Grid, Stack, Typography, CircularProgress, Box, FormControl, Select, MenuItem, SelectChangeEvent, useTheme, Dialog, DialogTitle, DialogContent, DialogActions, Button, FormControlLabel, Checkbox, TextField } from '@mui/material';
 import CategoryChart from '../components/CategoryChart';
 import CustomerTable from '../components/CustomerTable';
 import { fetchAdvancedAnalytics, fetchCustomers, downloadExecutiveReport } from '../api';
@@ -35,15 +35,28 @@ const Analytics = () => {
     const [loading, setLoading] = useState(true);
     const [downloadingPdf, setDownloadingPdf] = useState(false);
     const [timeRange, setTimeRange] = useState('90d');
+    const [customStart, setCustomStart] = useState('');
+    const [customEnd, setCustomEnd] = useState('');
+    const [reportDialogOpen, setReportDialogOpen] = useState(false);
+    const [includeHighRisk, setIncludeHighRisk] = useState(false);
+    const [includeMediumRisk, setIncludeMediumRisk] = useState(false);
+    const [includeLowRisk, setIncludeLowRisk] = useState(false);
     const theme = useTheme();
 
     useEffect(() => {
         const load = async () => {
+            if (timeRange === 'custom' && (!customStart || !customEnd)) {
+                return;
+            }
             setLoading(true);
             try {
                 // Parallel fetch
                 const [advData, custData] = await Promise.all([
-                    fetchAdvancedAnalytics(timeRange),
+                    fetchAdvancedAnalytics(
+                        timeRange, 
+                        timeRange === 'custom' ? customStart : undefined, 
+                        timeRange === 'custom' ? customEnd : undefined
+                    ),
                     fetchCustomers()
                 ]);
                 setAdvanced(advData);
@@ -53,7 +66,7 @@ const Analytics = () => {
             }
         };
         load();
-    }, [timeRange]);
+    }, [timeRange, customStart, customEnd]);
 
     const handleRangeChange = (event: SelectChangeEvent) => {
         setTimeRange(event.target.value as string);
@@ -77,9 +90,20 @@ const Analytics = () => {
     };
 
     const handleDownloadPdf = async () => {
+        setReportDialogOpen(false);
         setDownloadingPdf(true);
         try {
-            const blob = await downloadExecutiveReport(timeRange);
+            const riskLevels: string[] = [];
+            if (includeHighRisk) riskLevels.push('High Risk');
+            if (includeMediumRisk) riskLevels.push('Medium Risk');
+            if (includeLowRisk) riskLevels.push('Low Risk');
+
+            const blob = await downloadExecutiveReport(
+                timeRange, 
+                riskLevels,
+                timeRange === 'custom' ? customStart : undefined,
+                timeRange === 'custom' ? customEnd : undefined
+            );
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -130,59 +154,69 @@ const Analytics = () => {
                         </Typography>
                     </Box>
 
-                    <Stack direction="row" spacing={2}>
-                        <Box
-                            component="button"
-                            onClick={handleDownloadPdf}
+                    <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <Button
+                            variant="contained"
+                            color="secondary"
+                            onClick={() => setReportDialogOpen(true)}
                             disabled={downloadingPdf}
-                            sx={{
-                                border: 0,
-                                bgcolor: 'secondary.main',
-                                color: 'white',
-                                px: 2,
-                                py: 1,
-                                borderRadius: 1,
-                                cursor: downloadingPdf ? 'default' : 'pointer',
-                                fontWeight: 600,
-                                opacity: downloadingPdf ? 0.7 : 1,
-                                '&:hover': {
-                                    bgcolor: downloadingPdf ? 'secondary.main' : 'secondary.dark',
-                                }
-                            }}
+                            sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
                         >
                             {downloadingPdf ? 'Generating PDF...' : 'Download Report (.pdf)'}
-                        </Box>
-                        <Box
-                            component="button"
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="primary"
                             onClick={handleExport}
-                            sx={{
-                                border: 0,
-                                bgcolor: 'primary.main',
-                                color: 'white',
-                                px: 2,
-                                py: 1,
-                                borderRadius: 1,
-                                cursor: 'pointer',
-                                fontWeight: 600,
-                                '&:hover': {
-                                    bgcolor: 'primary.dark',
-                                }
-                            }}
+                            sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
                         >
                             Export CSV
-                        </Box>
+                        </Button>
                         <FormControl size="small" sx={{ minWidth: 120 }}>
                             <Select
                                 value={timeRange}
                                 onChange={handleRangeChange}
                                 sx={{ bgcolor: 'background.paper' }}
                             >
-                                <MenuItem value="7d">Last 7 Days</MenuItem>
-                                <MenuItem value="30d">Last 30 Days</MenuItem>
-                                <MenuItem value="90d">Last Quarter</MenuItem>
-                                <MenuItem value="12m">Last Year</MenuItem>
+                                <MenuItem value="7d">7 days</MenuItem>
+                                <MenuItem value="30d">Month</MenuItem>
+                                <MenuItem value="90d">Quarter</MenuItem>
+                                <MenuItem value="12m">Year</MenuItem>
+                                <MenuItem value="ytd">YTD</MenuItem>
+                                <MenuItem value="custom">Custom Dates</MenuItem>
                             </Select>
                         </FormControl>
+                        {timeRange === 'custom' && (
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                <TextField
+                                    size="small"
+                                    type="date"
+                                    value={customStart}
+                                    onChange={(e) => setCustomStart(e.target.value)}
+                                    sx={{ 
+                                        bgcolor: 'background.paper', 
+                                        width: 140,
+                                        '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                                            filter: theme.palette.mode === 'dark' ? 'invert(1)' : 'none'
+                                        }
+                                    }}
+                                />
+                                <Typography variant="body2" color="text.secondary">to</Typography>
+                                <TextField
+                                    size="small"
+                                    type="date"
+                                    value={customEnd}
+                                    onChange={(e) => setCustomEnd(e.target.value)}
+                                    sx={{ 
+                                        bgcolor: 'background.paper', 
+                                        width: 140,
+                                        '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                                            filter: theme.palette.mode === 'dark' ? 'invert(1)' : 'none'
+                                        }
+                                    }}
+                                />
+                            </Stack>
+                        )}
                     </Stack>
                 </Stack>
             </motion.div>
@@ -242,6 +276,34 @@ const Analytics = () => {
             <motion.div variants={itemVariants}>
                 <CustomerTable transactions={advanced?.recent_transactions || []} />
             </motion.div>
+
+            {/* Report Options Dialog */}
+            <Dialog open={reportDialogOpen} onClose={() => setReportDialogOpen(false)}>
+                <DialogTitle>Report Options</DialogTitle>
+                <DialogContent>
+                    <Typography gutterBottom sx={{ mb: 2 }}>Select any customer risk categories to include in the generated report:</Typography>
+                    <Stack spacing={1}>
+                        <FormControlLabel
+                            control={<Checkbox checked={includeHighRisk} onChange={(e) => setIncludeHighRisk(e.target.checked)} />}
+                            label="Include High Risk Customers"
+                        />
+                        <FormControlLabel
+                            control={<Checkbox checked={includeMediumRisk} onChange={(e) => setIncludeMediumRisk(e.target.checked)} />}
+                            label="Include Medium Risk Customers"
+                        />
+                        <FormControlLabel
+                            control={<Checkbox checked={includeLowRisk} onChange={(e) => setIncludeLowRisk(e.target.checked)} />}
+                            label="Include Low Risk Customers"
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setReportDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleDownloadPdf} variant="contained" disabled={downloadingPdf}>
+                        {downloadingPdf ? 'Generating...' : 'Generate & Download'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Stack>
     );
 };

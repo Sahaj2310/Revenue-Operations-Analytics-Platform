@@ -9,7 +9,7 @@ from database import get_session
 from models import User
 
 # Configuration
-SECRET_KEY = "your-secret-key-change-in-production"
+SECRET_KEY = "b0f04375a8d4e4bb0a788c40298993e712b05d5acc94de45964011ca4601a5c4"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

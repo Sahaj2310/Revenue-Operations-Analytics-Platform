@@ -41,8 +41,11 @@ export const getForecast = async (): Promise<ForecastResponse> => {
     return response.data;
 };
 
-export const fetchAdvancedAnalytics = async (range: string = '30d'): Promise<AdvancedAnalyticsResponse> => {
-    const response = await api.get<AdvancedAnalyticsResponse>(`/analytics/advanced?time_range=${range}`);
+export const fetchAdvancedAnalytics = async (range: string = '30d', startDate?: string, endDate?: string): Promise<AdvancedAnalyticsResponse> => {
+    const params = new URLSearchParams({ time_range: range });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const response = await api.get<AdvancedAnalyticsResponse>(`/analytics/advanced?${params.toString()}`);
     return response.data;
 };
 
@@ -77,8 +80,15 @@ export const generateCustomerPitch = async (name: string): Promise<{ pitch: stri
     return response.data;
 };
 
-export const downloadExecutiveReport = async (range: string = '30d'): Promise<Blob> => {
-    const response = await api.get(`/reports/executive-summary?time_range=${range}`, {
+export const downloadExecutiveReport = async (range: string = '30d', riskLevels: string[] = [], startDate?: string, endDate?: string): Promise<Blob> => {
+    const params = new URLSearchParams({ time_range: range });
+    if (riskLevels.length > 0) {
+        params.append('risk_levels', riskLevels.join(','));
+    }
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    
+    const response = await api.get(`/reports/executive-summary?${params.toString()}`, {
         responseType: 'blob' // Important for handling binary files like PDF
     });
     return response.data;
