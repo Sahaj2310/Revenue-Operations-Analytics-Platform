@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Button, TextField, Typography, Alert, Link, Stack } from '@mui/material';
 import { AutoAwesome } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import api from '../api';
 
 const Register = () => {
@@ -37,6 +38,25 @@ const Register = () => {
             } else {
                 setError('Registration failed. Please try again.');
             }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        try {
+            setLoading(true);
+            const response = await api.post('/auth/google', { token: credentialResponse.credential });
+            // For registration, we can just log them in if successful or redirect to login.
+            // But since our backend creates the user and returns access_token, we can just save it.
+            localStorage.setItem('token', response.data.access_token);
+            setSuccess('Google sign up successful! Redirecting to dashboard...');
+            setTimeout(() => {
+                window.location.href = '/'; // hard redirect to reload auth state
+            }, 1000);
+        } catch (err) {
+            console.error(err);
+            setError('Google sign-up failed.');
         } finally {
             setLoading(false);
         }
@@ -128,6 +148,20 @@ const Register = () => {
                         >
                             {loading ? 'Signing up...' : 'Sign up'}
                         </Button>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', my: 2 }}>
+                            <Box sx={{ flex: 1, borderBottom: '1px solid', borderColor: 'divider' }} />
+                            <Typography variant="body2" sx={{ px: 2, color: 'text.secondary' }}>OR</Typography>
+                            <Box sx={{ flex: 1, borderBottom: '1px solid', borderColor: 'divider' }} />
+                        </Box>
+
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => setError('Google sign up failed')}
+                                useOneTap
+                            />
+                        </Box>
                         
                         <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary', mt: 3 }}>
                             Already have an account?{' '}

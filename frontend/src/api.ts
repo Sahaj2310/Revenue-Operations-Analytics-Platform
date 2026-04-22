@@ -94,4 +94,19 @@ export const downloadExecutiveReport = async (range: string = '30d', riskLevels:
     return response.data;
 };
 
+export const googleAuth = async (token: string): Promise<{ access_token: string }> => {
+    const response = await api.post('/auth/google', { token });
+    return response.data;
+};
+
+export const askAICopilot = async (query: string): Promise<{ 
+    explanation: string, 
+    data: any[], 
+    visual_hint: string,
+    sql?: string 
+}> => {
+    const response = await api.post('/ai/copilot', { query });
+    return response.data;
+};
+
 export default api;

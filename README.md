@@ -5,7 +5,7 @@
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Gemini AI](https://img.shields.io/badge/AI-Gemini%202.5%20Flash-blue?logo=google&logoColor=white)](https://ai.google.dev/)
+[![Gemini AI](https://img.shields.io/badge/AI-Gemini%20Flash%20Latest-blue?logo=google&logoColor=white)](https://ai.google.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 > A full-stack **Revenue Operations Intelligence Platform** that combines Machine Learning, Generative AI, and modern web design to help sales and customer success teams make smarter, faster decisions.
@@ -26,9 +26,11 @@
 | Feature | Description |
 |---------|-------------|
 | **AI Churn Prediction** | K-Means clustering on RFM data (Recency, Frequency, Monetary) categorizes every customer as High / Medium / Low risk automatically. |
-| **AI Sales Pitch Generator** | Click a customer profile and generate a fully personalized sales or retention email in seconds, powered by **Google Gemini 2.5 Flash**. |
+| **AI Sales Pitch Generator** | Click a customer profile and generate a fully personalized sales or retention email in seconds, powered by **Google Gemini**. |
+| **AI Copilot (NL2SQL)** | Ask questions in plain English (e.g., "Who are my top 5 customers?") and the AI translates it into secure SQL, executes it, and visualizes the results. |
 | **Executive PDF Reports** | Download a beautifully structured PDF report with live metrics and a **Gemini-authored 3-sentence Executive Summary** for any time period. |
 | **Revenue Forecasting** | Polynomial regression model (degree 2) predicts the next 3–6 months of revenue from historical data. |
+| **High Reliability AI** | Multi-attempt retry logic with exponential backoff handles transient API spikes and service unavailability automatically. |
 
 ### 📊 Analytics & Dashboard
 | Feature | Description |
@@ -45,6 +47,7 @@
 | **Framer Motion Animations** | Staggered fade-in + slide-up animations on every page and component. |
 | **Premium Dark Theme** | Deep dark-mode aesthetic inspired by Mobbin and Sana AI. |
 | **Customer Drawer** | Right-sliding detail panel with full transaction history and AI assistant. |
+| **AI Copilot Sidebar** | Interactive chat interface for real-time revenue intelligence and data exploration. |
 | **Responsive Design** | Fully functional on desktop and large tablets. |
 
 ### 🔐 Security & Multi-User
@@ -63,10 +66,12 @@ graph TD
     A[React Frontend<br/>TypeScript + MUI + Framer Motion] -->|REST API / JWT| B[FastAPI Backend<br/>Python 3.9+]
     B -->|SQLModel ORM| C[(PostgreSQL<br/>Database)]
     B -->|RFM + K-Means| D[ML Engine<br/>Scikit-Learn]
-    B -->|Prompt Engineering| E[Google Gemini 2.5 Flash<br/>Generative AI]
+    B -->|Prompt Engineering| E[Google Gemini<br/>Generative AI]
     B -->|fpdf2| F[PDF Engine<br/>Executive Reports]
+    B -->|NL2SQL| G[AI Copilot<br/>Query Engine]
     E --> B
     D --> B
+    G --> B
 ```
 
 ---
@@ -125,6 +130,7 @@ Revenue-Operations-Analytics-Platform/
 │   │   │   ├── Login.tsx         # Authentication page
 │   │   │   └── Register.tsx      # Registration page
 │   │   ├── components/           # Reusable UI components
+│   │   │   ├── AICopilot/        # AI Copilot components & sidebar
 │   │   │   ├── Sidebar.tsx       # Navigation sidebar
 │   │   │   ├── CustomerDrawer.tsx# Customer detail + AI pitch
 │   │   │   ├── CustomerTable.tsx # Animated transaction table
@@ -248,6 +254,7 @@ npm run dev
 | `GET` | `/customers/{name}` | ✅ | Transactions for a specific customer |
 | `POST` | `/customers/{name}/generate-pitch` | ✅ | AI-generated sales pitch for customer |
 | `GET` | `/forecast` | ✅ | ML revenue forecast (next 3 months) |
+| `POST` | `/ai/copilot` | ✅ | Natural Language query processing |
 | `POST` | `/upload` | ✅ | Bulk CSV data upload |
 | `DELETE` | `/data` | ✅ | Clear all data for current user |
 | `GET` | `/reports/executive-summary` | ✅ | Download AI-powered PDF report |

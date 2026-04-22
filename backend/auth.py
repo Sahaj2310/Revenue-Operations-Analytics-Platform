@@ -7,6 +7,8 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
 from database import get_session
 from models import User
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 # Configuration
 SECRET_KEY = "b0f04375a8d4e4bb0a788c40298993e712b05d5acc94de45964011ca4601a5c4"
@@ -21,6 +23,15 @@ def verify_password(plain_password, hashed_password):
 
 def get_password_hash(password):
     return pwd_context.hash(password)
+
+def verify_google_token(token: str):
+    import os
+    CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+    try:
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), CLIENT_ID)
+        return idinfo
+    except ValueError:
+        return None
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

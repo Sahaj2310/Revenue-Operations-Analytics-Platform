@@ -19,6 +19,7 @@ export interface StatsResponse {
 export interface ForecastResponse {
     historical: MonthlyRevenue[];
     forecast: MonthlyRevenue[];
+    narrative?: string;
 }
 
 export interface StatCardProps {

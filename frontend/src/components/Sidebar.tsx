@@ -4,7 +4,7 @@ import { Dashboard, Insights, People, Settings, AutoAwesome, Logout } from '@mui
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const Sidebar = () => {
+const Sidebar = ({ onOpenCopilot }: { onOpenCopilot: () => void }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const theme = useTheme();
@@ -75,13 +75,40 @@ const Sidebar = () => {
                                 }}
                             >
                                 <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
-                                    {React.cloneElement(item.icon, { sx: { fontSize: 20 } })}
+                                    {React.cloneElement(item.icon, { sx: { fontSize: 20 } } as any)}
                                 </ListItemIcon>
                                 <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: active ? 600 : 500, fontSize: '0.9rem' }} />
                             </ListItemButton>
                         </ListItem>
                     );
                 })}
+
+                {/* AI Copilot Button */}
+                <ListItem disablePadding sx={{ mt: 1 }}>
+                    <ListItemButton
+                        onClick={onOpenCopilot}
+                        sx={{
+                            borderRadius: '9999px',
+                            py: 1.5,
+                            px: 2,
+                            bgcolor: 'rgba(99, 102, 241, 0.1)',
+                            color: 'primary.main',
+                            border: '1px solid rgba(99, 102, 241, 0.2)',
+                            '&:hover': {
+                                bgcolor: 'rgba(99, 102, 241, 0.2)',
+                                color: 'primary.main'
+                            }
+                        }}
+                    >
+                        <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
+                            <AutoAwesome sx={{ fontSize: 20 }} />
+                        </ListItemIcon>
+                        <ListItemText 
+                            primary="Ask AI" 
+                            primaryTypographyProps={{ fontWeight: 700, fontSize: '0.9rem' }} 
+                        />
+                    </ListItemButton>
+                </ListItem>
             </List>
 
             <Box sx={{ mt: 'auto', p: 3, pb: 4 }}>

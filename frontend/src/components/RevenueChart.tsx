@@ -32,9 +32,13 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ history, prediction }) => {
     //    but here we'll keep them distinct layers for visual clarity.
 
     const combinedData = [
-        ...(Array.isArray(history) ? history : []).map(d => ({ month: d.month, history: d.revenue, prediction: null })),
-        ...(Array.isArray(prediction) ? prediction : []).map(d => ({ month: d.month, history: null, prediction: d.revenue }))
-    ];
+        ...(Array.isArray(history) ? history : [])
+            .filter(d => d && d.month)
+            .map(d => ({ month: String(d.month), history: Number(d.revenue) || 0, prediction: null })),
+        ...(Array.isArray(prediction) ? prediction : [])
+            .filter(d => d && d.month)
+            .map(d => ({ month: String(d.month), history: null, prediction: Number(d.revenue) || 0 }))
+    ].sort((a, b) => String(a.month).localeCompare(String(b.month)));
 
     return (
         <Card sx={{ height: '100%', minHeight: 400 }}>
@@ -48,7 +52,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ history, prediction }) => {
                     </Typography>
                 </Box>
 
-                <Box sx={{ flex: 1, minHeight: 0 }}>
+                <Box sx={{ height: 350, minHeight: 300 }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={combinedData}>
                             <defs>

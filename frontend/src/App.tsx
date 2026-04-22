@@ -13,10 +13,13 @@ import Customers from './pages/Customers';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import CopilotSidebar from './components/AICopilot/CopilotSidebar';
+import { useState } from 'react';
 
 function AppContent() {
     const { mode } = useColorMode();
     const theme = useMemo(() => getTheme(mode), [mode]);
+    const [copilotOpen, setCopilotOpen] = useState(false);
 
     return (
         <ThemeProvider theme={theme}>
@@ -31,7 +34,7 @@ function AppContent() {
                     <Route path="/*" element={
                         <ProtectedRoute>
                             <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-                                <Sidebar />
+                                <Sidebar onOpenCopilot={() => setCopilotOpen(true)} />
                                 <Box component="main" sx={{ 
                                     flexGrow: 1, 
                                     ml: { xs: 0, md: '260px' }, 
@@ -48,6 +51,7 @@ function AppContent() {
                                         <Route path="/settings" element={<Settings />} />
                                     </Routes>
                                 </Box>
+                                <CopilotSidebar open={copilotOpen} onClose={() => setCopilotOpen(false)} />
                             </Box>
                         </ProtectedRoute>
                     } />

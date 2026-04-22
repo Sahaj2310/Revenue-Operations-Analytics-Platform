@@ -3,6 +3,7 @@ import { Box, Button, TextField, Typography, Alert, Link, Stack } from '@mui/mat
 import { AutoAwesome } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { GoogleLogin } from '@react-oauth/google';
 import api from '../api';
 
 const Login = () => {
@@ -32,6 +33,20 @@ const Login = () => {
         } catch (err: any) {
             console.error(err);
             setError('Invalid credentials. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        try {
+            setLoading(true);
+            const response = await api.post('/auth/google', { token: credentialResponse.credential });
+            login(response.data.access_token);
+            navigate('/');
+        } catch (err) {
+            console.error(err);
+            setError('Google sign in failed.');
         } finally {
             setLoading(false);
         }
@@ -112,6 +127,20 @@ const Login = () => {
                         >
                             {loading ? 'Signing in...' : 'Sign in'}
                         </Button>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', my: 2 }}>
+                            <Box sx={{ flex: 1, borderBottom: '1px solid', borderColor: 'divider' }} />
+                            <Typography variant="body2" sx={{ px: 2, color: 'text.secondary' }}>OR</Typography>
+                            <Box sx={{ flex: 1, borderBottom: '1px solid', borderColor: 'divider' }} />
+                        </Box>
+
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => setError('Google sign in failed')}
+                                useOneTap
+                            />
+                        </Box>
                         
                         <Typography variant="body2" sx={{ textAlign: 'center', color: 'text.secondary', mt: 3 }}>
                             Don't have an account?{' '}

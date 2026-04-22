@@ -137,3 +137,85 @@ def predict_churn_risk(df: pd.DataFrame):
     except Exception as e:
         print(f"K-Means Failed, falling back to rules: {e}")
         return apply_rules(rfm)
+
+def generate_ai_forecast(data: pd.DataFrame, months_to_predict: int = 3):
+    """
+    Uses Gemini AI to analyze trends and provide a generative forecast.
+    """
+    from ai_service import client
+    import json
+
+    if data.empty or not client:
+        return train_and_predict(data, months_to_predict) # Fallback
+
+    # Aggregate by month for context
+    data['date'] = pd.to_datetime(data['date'])
+    monthly_data = data.resample('ME', on='date')['amount'].sum().reset_index()
+    
+    # Format data for the prompt
+    history_str = "\n".join([
+        f"- {row['date'].strftime('%Y-%m')}: ${row['amount']:.2f}"
+        for _, row in monthly_data.tail(12).iterrows()
+    ])
+
+    prompt = f"""
+    You are a Strategic Revenue Analyst. Analyzed the following historical revenue data and predict the next {months_to_predict} months.
+
+    HISTORICAL DATA (Last 12 months):
+    {history_str}
+
+    TASK:
+    1. Analyze the growth trend, seasonality, and patterns.
+    2. Provide a numerical prediction for the next {months_to_predict} months.
+    3. Provide a "narrative": A 2-sentence explanation of your forecast reasoning.
+
+    IMPORTANT:
+    - Return ONLY a valid JSON object.
+    - JSON keys: 
+        "forecast": a list of objects with "month" (YYYY-MM) and "revenue" (float)
+        "narrative": a string (max 200 characters)
+
+    RESPONSE (JSON ONLY):
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='models/gemini-1.5-flash',
+            contents=prompt,
+            config={
+                'response_mime_type': 'application/json'
+            }
+        )
+        ai_data = json.loads(response.text.strip())
+        
+        raw_forecast = ai_data.get("forecast", [])
+        validated_forecast = []
+        
+        # Ensure Gemini returned what we need
+        for item in raw_forecast:
+            if isinstance(item, dict) and 'month' in item and 'revenue' in item:
+                validated_forecast.append({
+                    "month": str(item['month']),
+                    "revenue": float(item['revenue'])
+                })
+        
+        # Prepare historical data for the frontend
+        historical_results = [
+            {"month": row['date'].strftime('%Y-%m'), "revenue": float(row['amount'])}
+            for _, row in monthly_data.iterrows()
+        ]
+
+        return {
+            "historical": historical_results,
+            "forecast": validated_forecast,
+            "narrative": ai_data.get("narrative", "AI analyzed your trends to project growth.")
+        }
+
+    except Exception as e:
+        import traceback
+        print(f"Gemini Forecast Error: {e}")
+        traceback.print_exc() # Show full trace in console
+        # Fallback to standard math model
+        base_forecast = train_and_predict(data, months_to_predict)
+        base_forecast["narrative"] = "Forecast generated using standard regression (AI fallback)."
+        return base_forecast

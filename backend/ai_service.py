@@ -1,6 +1,7 @@
 import os
 from google import genai
 from dotenv import load_dotenv
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 # Load environment variables
 load_dotenv()
@@ -14,6 +15,24 @@ if API_KEY:
 else:
     print("WARNING: GEMINI_API_KEY not found in .env. AI Generation will fail.")
 
+# Retry logic: Up to 5 attempts, exponential backoff starting at 2s
+ai_retry = retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=2, min=2, max=60),
+    reraise=True
+)
+
+def get_model_name(attempt=0):
+    """
+    Returns the model name. Can be used for rotating models if needed.
+    """
+    # Primary model: 2.5-flash. Fallback: 2.0-flash for stability if needed.
+    # In this environment, we'll stick to a more stable 'latest' alias if 2.5 is busy.
+    if attempt > 2:
+        return 'models/gemini-2.0-flash'
+    return 'models/gemini-2.5-flash'
+
+@ai_retry
 def generate_personalized_pitch(
     customer_name: str, 
     total_revenue: float, 
@@ -67,7 +86,7 @@ def generate_personalized_pitch(
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='models/gemini-flash-latest',
             contents=prompt
         )
         return response.text.strip()
@@ -75,6 +94,7 @@ def generate_personalized_pitch(
         print(f"Gemini API Error: {e}")
         raise ValueError("Failed to generate AI content.")
 
+@ai_retry
 def generate_executive_summary(
     total_revenue: float,
     active_customers: int,
@@ -110,10 +130,72 @@ def generate_executive_summary(
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash',
             contents=prompt
         )
         return response.text.strip()
     except Exception as e:
         print(f"Gemini Summary Error: {e}")
         return "AI Summary generation failed due to an error."
+
+@ai_retry
+def translate_query_to_sql(user_query: str) -> dict:
+    """
+    Translates a natural language user query into a SQL query.
+    Returns a dictionary with 'explanation', 'sql', and 'visual_hint'.
+    """
+    if not client:
+        raise ValueError("GEMINI_API_KEY is not configured.")
+
+    schema_context = """
+    Table Name: revenuedata
+    Columns:
+    - id (integer, primary key)
+    - date (datetime)
+    - amount (float)
+    - customer_name (string)
+    - category (string)
+    - user_id (integer, foreign key)
+    """
+
+    prompt = f"""
+    You are a RevOps Data Expert. Your task is to translate a user's natural language question into a standard SQL query based on the schema below.
+
+    SCHEMA:
+    {schema_context}
+
+    USER QUESTION: "{user_query}"
+
+    IMPORTANT INSTRUCTIONS:
+    1. The query MUST be a SELECT statement. Never update or delete.
+    2. ALWAYS include 'WHERE user_id = [USER_ID_HINT]' in your logic (the backend will replace [USER_ID_HINT] with the actual ID).
+    3. Return ONLY a valid JSON object with the following keys:
+       - "explanation": A brief, friendly explanation of how you are answering the question.
+       - "sql": The raw SQL query. Use standard SQL syntax. Use "revenuedata" as the table name.
+       - "visual_hint": Choose one from: "table", "bar_chart", "line_chart", "kpi".
+    4. For date filtering, use standard date strings or intervals (e.g., CURRENT_DATE).
+    5. If the question cannot be answered with this schema, return an explanation and an empty string for the SQL.
+
+    EXAMPLE JSON RESPONSE:
+    {{
+      "explanation": "I'll find your top 5 customers by total revenue.",
+      "sql": "SELECT customer_name, SUM(amount) as total_revenue FROM revenuedata WHERE user_id = [USER_ID_HINT] GROUP BY customer_name ORDER BY total_revenue DESC LIMIT 5",
+      "visual_hint": "bar_chart"
+    }}
+
+    Response (JSON ONLY):
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='models/gemini-flash-latest',
+            contents=prompt,
+            config={
+                'response_mime_type': 'application/json'
+            }
+        )
+        import json
+        return json.loads(response.text.strip())
+    except Exception as e:
+        print(f"Gemini Copilot Error: {e}")
+        raise e

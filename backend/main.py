@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 from datetime import timedelta
 from database import create_db_and_tables, get_session, engine
 from models import RevenueData, User
-from ml_logic import train_and_predict, predict_churn_risk
-from ai_service import generate_personalized_pitch, generate_executive_summary
+from ml_logic import train_and_predict, predict_churn_risk, generate_ai_forecast
+from ai_service import generate_personalized_pitch, generate_executive_summary, translate_query_to_sql
 from report_service import generate_pdf_report
 from fastapi.responses import Response
 from auth import (
@@ -20,8 +20,14 @@ from auth import (
     create_access_token, 
     get_password_hash, 
     verify_password,
-    get_current_user
+    get_current_user,
+    verify_google_token
 )
+from pydantic import BaseModel
+
+class GoogleAuthRequest(BaseModel):
+    token: str
+
 
 app = FastAPI()
 
@@ -78,6 +84,52 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = D
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/auth/google")
+def google_auth(request: GoogleAuthRequest, session: Session = Depends(get_session)):
+    idinfo = verify_google_token(request.token)
+    if not idinfo:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google token",
+        )
+    
+    email = idinfo.get('email')
+    name = idinfo.get('name', '')
+    
+    # Check if user exists
+    statement = select(User).where(User.email == email)
+    user = session.exec(statement).first()
+    
+    if not user:
+        # Create a new user
+        # Generate a username from email (everything before @)
+        base_username = email.split('@')[0]
+        # Ensure username is unique
+        username = base_username
+        counter = 1
+        while session.exec(select(User).where(User.username == username)).first():
+            username = f"{base_username}{counter}"
+            counter += 1
+            
+        import secrets
+        # Dummy random password since they use Google
+        random_password = secrets.token_urlsafe(16)
+        
+        user = User(
+            username=username,
+            email=email,
+            hashed_password=get_password_hash(random_password)
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
@@ -291,17 +343,15 @@ def get_forecast(session: Session = Depends(get_session), current_user: User = D
     results = session.exec(statement).all()
     
     if not results:
-         return {"historical": [], "forecast": []}
+         return {"historical": [], "forecast": [], "narrative": "No data available."}
          
     # Convert to DataFrame
-    data = []
-    for row in results:
-        data.append(row.dict())
+    data = [row.dict() for row in results]
     df = pd.DataFrame(data)
     
-    forecast_results = train_and_predict(df)
+    forecast_results = generate_ai_forecast(df)
     
-    return {"forecast": forecast_results}
+    return forecast_results
 
 @app.delete("/data")
 def clear_data(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
@@ -397,46 +447,64 @@ def get_customer_details(customer_name: str, session: Session = Depends(get_sess
 
 @app.post("/customers/{customer_name}/generate-pitch")
 def generate_customer_pitch(customer_name: str, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
-    # Get all transactions for context
-    statement = select(RevenueData).where(
-        RevenueData.customer_name == customer_name,
-        RevenueData.user_id == current_user.id
-    ).order_by(RevenueData.date.desc())
-    results = session.exec(statement).all()
-    
-    if not results:
-        raise HTTPException(status_code=404, detail="Customer not found or has no data")
-
-    # Aggregate Data
-    df = pd.DataFrame([row.dict() for row in results])
-    df['date'] = pd.to_datetime(df['date'])
-    
-    total_revenue = float(df['amount'].sum())
-    transaction_count = len(df)
-    
-    recent_transactions = [
-        {"date": row['date'].strftime('%Y-%m-%d'), "category": row['category'], "amount": float(row['amount'])}
-        for _, row in df.head(5).iterrows()
-    ]
-    
-    # Get Churn Risk Context
-    churn_risks = predict_churn_risk(df)
-    risk_data = churn_risks.get(customer_name, {"risk": "Unknown", "reason": "Not enough data"})
-
-    # Call AI Service
+    import traceback
     try:
+        # Get all transactions for context
+        statement = select(RevenueData).where(
+            RevenueData.customer_name == customer_name,
+            RevenueData.user_id == current_user.id
+        ).order_by(RevenueData.date.desc())
+        results = session.exec(statement).all()
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="Customer not found or has no data")
+
+        # Aggregate Data
+        df = pd.DataFrame([row.dict() for row in results])
+        df['date'] = pd.to_datetime(df['date'])
+        
+        total_revenue = float(df['amount'].sum())
+        transaction_count = len(df)
+        
+        # Safe date formatting using pandas Timestamp
+        recent_transactions = []
+        for _, row in df.head(5).iterrows():
+            recent_transactions.append({
+                "date": str(row['date'])[:10],  # Safe ISO format slice
+                "category": str(row['category']),
+                "amount": float(row['amount'])
+            })
+        
+        # Get Churn Risk Context — safely, since predict_churn_risk needs 'id' col
+        churn_risk_label = "Unknown"
+        churn_reason = "Not enough data"
+        try:
+            if 'id' in df.columns:
+                churn_risks = predict_churn_risk(df)
+                risk_data = churn_risks.get(customer_name, {"risk": "Unknown", "reason": "Not enough data"})
+                churn_risk_label = risk_data.get("risk", "Unknown")
+                churn_reason = risk_data.get("reason", "Not enough data")
+        except Exception as e:
+            print(f"Churn risk calculation warning (non-fatal): {e}")
+
+        # Call AI Service
         pitch = generate_personalized_pitch(
             customer_name=customer_name,
             total_revenue=total_revenue,
             transaction_count=transaction_count,
             recent_transactions=recent_transactions,
-            churn_risk=risk_data['risk'],
-            churn_reason=risk_data['reason']
+            churn_risk=churn_risk_label,
+            churn_reason=churn_reason
         )
         return {"pitch": pitch}
+    except HTTPException:
+        raise
     except ValueError as ve:
+        print(f"ValueError in generate_customer_pitch: {ve}")
         raise HTTPException(status_code=500, detail=str(ve))
     except Exception as e:
+        print(f"Unexpected error in generate_customer_pitch:")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail="An error occurred while generating the pitch.")
 
 def create_pie_chart(category_list):
@@ -599,3 +667,88 @@ def get_executive_summary_report(
         'Content-Disposition': f'attachment; filename="Executive_Revenue_Report_{time_range}.pdf"'
     }
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+
+class CopilotQueryRequest(BaseModel):
+    query: str
+
+@app.post("/ai/copilot")
+def ai_copilot(
+    request: CopilotQueryRequest, 
+    session: Session = Depends(get_session), 
+    current_user: User = Depends(get_current_user)
+):
+    from sqlalchemy import text
+    
+    # 1. Translate Query to SQL
+    try:
+        ai_response = translate_query_to_sql(request.query)
+        sql = ai_response.get("sql", "")
+        explanation = ai_response.get("explanation", "I couldn't generate a query for that.")
+        visual_hint = ai_response.get("visual_hint", "table")
+        
+        if not sql:
+            return {
+                "explanation": explanation,
+                "data": [],
+                "visual_hint": visual_hint
+            }
+        
+        # 2. Secure and Execute SQL
+        # Replace the user_id placeholder with the actual current user ID
+        # Also force read-only by checking for forbidden keywords (very basic sanitization)
+        forbidden = ["drop", "delete", "update", "insert", "truncate", "alter", "create"]
+        if any(word in sql.lower() for word in forbidden):
+            raise HTTPException(status_code=400, detail="Forbidden query detected.")
+            
+        # Ensure user_id scoping is present
+        if "[USER_ID_HINT]" in sql:
+            sql = sql.replace("[USER_ID_HINT]", str(current_user.id))
+        else:
+            # If AI forgot the filter, we append it manually if possible, or fail for safety
+            if "WHERE" in sql.upper():
+                sql = sql.replace("WHERE", f"WHERE user_id = {current_user.id} AND ")
+            else:
+                # Add a WHERE clause if none exists
+                if "GROUP BY" in sql.upper():
+                    sql = sql.replace("GROUP BY", f"WHERE user_id = {current_user.id} GROUP BY")
+                elif "ORDER BY" in sql.upper():
+                    sql = sql.replace("ORDER BY", f"WHERE user_id = {current_user.id} ORDER BY")
+                elif "LIMIT" in sql.upper():
+                    sql = sql.replace("LIMIT", f"WHERE user_id = {current_user.id} LIMIT")
+                else:
+                    sql += f" WHERE user_id = {current_user.id}"
+
+        # Execute
+        result = session.execute(text(sql))
+        rows = result.mappings().all()
+        
+        # Convert rows to list of dicts
+        data = [dict(row) for row in rows]
+        
+        return {
+            "explanation": explanation,
+            "data": data,
+            "visual_hint": visual_hint,
+            "sql": sql # For debugging / transparency
+        }
+        
+    except Exception as e:
+        print(f"Copilot API Error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Check if it was a persistence service error
+        error_msg = str(e)
+        if "503" in error_msg or "unavailable" in error_msg.lower():
+            friendly_error = "The AI service is currently overloaded. Please try again in a few moments."
+        elif "429" in error_msg or "rate limit" in error_msg.lower():
+            friendly_error = "AI rate limit reached. Please wait a minute before trying again."
+        else:
+            friendly_error = f"AI Error: {error_msg}"
+
+        return {
+            "explanation": friendly_error,
+            "data": [],
+            "visual_hint": "table",
+            "error": error_msg
+        }
