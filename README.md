@@ -30,7 +30,7 @@
 | **AI Copilot (NL2SQL)** | Ask questions in plain English (e.g., "Who are my top 5 customers?") and the AI translates it into secure SQL, executes it, and visualizes the results. |
 | **Executive PDF Reports** | Download a beautifully structured PDF report with live metrics and a **Gemini-authored 3-sentence Executive Summary** for any time period. |
 | **Revenue Forecasting** | Polynomial regression model (degree 2) predicts the next 3–6 months of revenue from historical data. |
-| **High Reliability AI** | Multi-attempt retry logic with exponential backoff handles transient API spikes and service unavailability automatically. |
+| **High Reliability AI** | Multi-attempt retry logic with exponential backoff handles transient API spikes and service unavailability automatically. Fallback to `gemini-2.0-flash` or `gemini-flash-latest` ensures continuous operation during API limitations. |
 
 ### 📊 Analytics & Dashboard
 | Feature | Description |
@@ -239,6 +239,18 @@ npm run dev
 4. Upload the included `sample_data.csv` file — data will populate immediately.
 5. Navigate to **Customers** and click any row to open the AI Pitch Generator.
 6. Go to **Analytics** and click **Download Report (.pdf)** to get your AI Executive Report.
+
+---
+
+### 5. Testing & Verification
+
+A built-in script is provided to verify your Gemini API connection and model availability:
+
+```bash
+cd backend
+python test_gemini.py
+```
+If successful, you will see a test response from the `gemini-2.5-flash` model, confirming your environment is correctly configured.
 
 ---
 
